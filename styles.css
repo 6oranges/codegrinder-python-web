@@ -244,3 +244,8 @@ body {
   overflow: auto;
   grid-area: content;
 }
+
+#output_terminal input {
+  font-family: inherit;
+  color: grey;
+}

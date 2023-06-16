@@ -51,7 +51,6 @@ class Tab {
   }
   updateSize() {
     this.#ace.resize();
-    console.log("bad")
   }
   destroy() {
     this.#ace.destroy();

@@ -60,7 +60,7 @@ class PythonWorker {
     await this.ready;
     const encoder = new TextEncoder();
     const utf8Bytes = encoder.encode(str);
-    this.#stdin.enqueueMultipleAsync(utf8Bytes);
+    await Promise.race([this.#stdin.asyncEnqueueMultiple(utf8Bytes), this.destroyed]);
   }
   async #registerStream(stream, callback) {
     const decoder = new TextDecoder('utf-8');
@@ -104,6 +104,9 @@ class PythonRunner {
   setStderrCallback(callback) {
     this.stderrCallback = callback;
     this.#worker.stderrCallback = callback;
+  }
+  async writeStdin(str) {
+    await this.#worker.writeStdin(str);
   }
 }
 export { PythonRunner };

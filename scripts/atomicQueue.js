@@ -49,7 +49,7 @@ class AtomicQueue {
   async asyncEnqueueMultiple(bytes = new Int8Array()) {
     while (true) {
       const currentTail = Atomics.load(this.#tail, 0);
-      const nextTail = (currentTail + bytes.length) % queue.length;
+      const nextTail = (currentTail + bytes.length) % this.#queue.length;
       if (nextTail !== Atomics.load(this.#head, 0)) {
         Atomics.store(this.#tail, 0, nextTail);
         for (let byte = 0; byte < bytes.length; byte++) {

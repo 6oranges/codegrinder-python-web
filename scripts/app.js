@@ -2,7 +2,8 @@ import { Tabs } from './editorTabs.js';
 import { FileSystem, FileSystemUI, extension } from './directoryTree.js';
 import { PythonRunner } from './pythonHandler.js'
 
-const output_terminal = document.getElementById("output_terminal");
+const output_terminal = document.getElementById("output_terminal").getElementsByTagName("pre")[0];
+const input_terminal = document.getElementById("output_terminal").getElementsByTagName("input")[0];
 const run = document.getElementById("run");
 const mdElement = document.getElementById("instructions");
 const sideBarToggleElement = document.getElementById("side_bar_toggle");
@@ -82,6 +83,11 @@ function writeTerminal(str, color) {
         previousSpan = document.createElement("span");
         previousSpan.style.color = color;
         output_terminal.appendChild(previousSpan);
+        const resetFocus = document.activeElement === input_terminal;
+        output_terminal.appendChild(input_terminal);
+        if (resetFocus) {
+            input_terminal.focus();
+        }
     }
     previousSpan.innerText += str;
     if (str.includes("\n")) {
@@ -93,7 +99,16 @@ run.disabled = true;
 pythonRunner.ready.then(() => {
     run.disabled = false;
     run.innerText = "Run";
+    writeTerminal(">> ", "orange");
 });
+input_terminal.addEventListener("keydown", (e) => {
+    if (e.code === "Enter" && pythonRunning) {
+        writeTerminal(input_terminal.value + "\n", "grey");
+        pythonRunner.writeStdin(input_terminal.value + "\n");
+        input_terminal.value = "";
+        input_terminal.focus();
+    }
+})
 pythonRunner.setStdoutCallback((str) => {
     writeTerminal(str, "black");
 })
@@ -111,7 +126,8 @@ run.addEventListener("click", async () => {
         pythonRunning = true;
         writeTerminal("Running " + tabs.tabs[tabs.currentTab].path + "\n", "orange");
         await pythonRunner.runPython(fileSystem, tabs.tabs[tabs.currentTab].path);
-        await pythonRunner.ready; 
+        await pythonRunner.ready;
+        writeTerminal(">> ", "orange");
         pythonRunning = false;
         run.innerText = "Run";
         run.disabled = false;
