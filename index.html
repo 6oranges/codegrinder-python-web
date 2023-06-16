@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width">
+  <link rel="stylesheet" href="styles.css">
+  <title>Python Editor</title>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
+</head>
+
+<body>
+  <ol id="nav_bar">
+    <li><button id="side_bar_toggle"> &gt;&gt; </button></li>
+    <li><button id="run">Loading</button></li>
+    <li><button id="new_tab">New</button></li>
+    <li><button id="save_current">Save</button></li>
+    <li><button id="save_all">Save All</button></li>
+  </ol>
+
+  <div id="instructions_container">
+    <div class="resize-handle"></div>
+    <div id="instructions">instructions</div>
+  </div>
+
+  <div id="tabs">
+    <div id="side_bar">
+      <ul id="directory_tree">
+
+      </ul>
+    </div>
+  </div>
+  <div id="terminal_container">
+    <div class="resize-handle"></div>
+    <pre id="output_terminal"></pre>
+  </div>
+
+  <!-- Editor -->
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.14/src/ace.js"></script>
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.14/src/ext-modelist.js"></script>
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.14/src/ext-language_tools.js"></script>
+  <script src="scripts/atomicQueue.js"></script>
+  <script src="scripts/app.js" type="module"></script>
+  <script src="scripts/resizeInstructions.js" type="module"></script>
+  <script src="scripts/resizeTerminal.js" type="module"></script>
+  <script crossorigin src="https://cdn.jsdelivr.net/npm/markdown-it@13.0.1/dist/markdown-it.min.js"></script>
+</body>
+
+</html>
