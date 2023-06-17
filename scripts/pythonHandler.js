@@ -60,12 +60,12 @@ class PythonWorker {
     await this.ready;
     const encoder = new TextEncoder();
     const utf8Bytes = encoder.encode(str);
-    await Promise.race([this.#stdin.asyncEnqueueMultiple(utf8Bytes), this.destroyed]);
+    await Promise.race([this.#stdin.enqueueChunkedMultipleAsync(utf8Bytes), this.destroyed]);
   }
   async #registerStream(stream, callback) {
     const decoder = new TextDecoder('utf-8');
     while (true) {
-      const bytes = await Promise.race([stream.asyncDequeueAll(), this.destroyed]);
+      const bytes = await Promise.race([stream.dequeueAllAsync(), this.destroyed]);
       if (!bytes) {
         return;
       }

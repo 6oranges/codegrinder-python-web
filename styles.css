@@ -245,6 +245,10 @@ body {
   grid-area: content;
 }
 
+#output_terminal pre {
+  padding-bottom: 2em;
+}
+
 #output_terminal input {
   font-family: inherit;
   color: grey;

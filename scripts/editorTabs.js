@@ -16,10 +16,10 @@ function createAceEditor(element) {
 const UNTITLED = "untitled";
 class Tab {
   // Private members
-  #nameElement = null;
-  #saved = null;
-  #path = null;
-  #ace = null;
+  #nameElement;
+  #saved;
+  #path;
+  #ace;
   constructor(path = UNTITLED, content = "") {
     // Set up Tab
     this.element = document.createElement('li');

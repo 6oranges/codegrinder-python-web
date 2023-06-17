@@ -1,9 +1,9 @@
 import { Tabs } from './editorTabs.js';
 import { FileSystem, FileSystemUI, extension } from './directoryTree.js';
 import { PythonRunner } from './pythonHandler.js'
-
-const output_terminal = document.getElementById("output_terminal").getElementsByTagName("pre")[0];
-const input_terminal = document.getElementById("output_terminal").getElementsByTagName("input")[0];
+const output_terminal_label = document.getElementById("output_terminal")
+const output_terminal = output_terminal_label.getElementsByTagName("pre")[0];
+const input_terminal = output_terminal_label.getElementsByTagName("input")[0];
 const run = document.getElementById("run");
 const mdElement = document.getElementById("instructions");
 const sideBarToggleElement = document.getElementById("side_bar_toggle");
@@ -19,16 +19,14 @@ const tabs = new Tabs(document.getElementById("tabs"), (path, content) => {
 const pythonRunner = new PythonRunner();
 
 // Set up example fileSystem
-fileSystem.touch("/etc/www/test/index.html");
-fileSystem.touch("/etc/www/test/style.css");
-fileSystem.touch("/etc/www/test/potato.txt");
-fileSystem.touch("/etc/www/test/test.js");
-fileSystem.touch("/turtle.py").content = `import time
-print('hi')
-t1=time.time()
-while time.time()-t1<3:
-    pass
-print('bye')`;
+fetch("python/turtle.py").then(response => response.text()).then(text => {
+    fileSystem.touch("/turtle.py").content = text;
+    fileSystemUI.refreshUI();
+})
+fetch("python/svg.py").then(response => response.text()).then(text => {
+    fileSystem.touch("/svg.py").content = text;
+    fileSystemUI.refreshUI();
+})
 fileSystem.touch("/doc.md").content = `
 # 31.4) Bookend List
 Create a function \`bookend_list\` that consumes
@@ -36,7 +34,10 @@ a list as a parameter and returns the first and last
 elements of that list but as part of a new list. If
 the original list is empty, return an empty list instead.
 Unit test this function sufficiently.`;
+fileSystem.touch("/test.py").content = `raise Exception("123456"*1000)#import turtle
+#turtle.forward(100)`
 fileSystemUI.refreshUI();
+tabs.addSwitchTab('/test.py', fileSystem.touch('/test.py').content);
 
 // Set up sidebar
 let sideBarOpen = false;
@@ -55,7 +56,6 @@ document.addEventListener("click", (e) => {
 sideBarToggleElement.addEventListener("click", toggleSideBar);
 
 // Set up tabs
-tabs.addSwitchTab('/turtle.py', fileSystem.touch('/turtle.py').content);
 fileSystemUI.fileClick = (fileNode, path) => {
     tabs.addSwitchTab(path, fileNode.content);
     toggleSideBar();
@@ -91,7 +91,7 @@ function writeTerminal(str, color) {
     }
     previousSpan.innerText += str;
     if (str.includes("\n")) {
-        output_terminal.scrollTop = output_terminal.scrollHeight;
+        output_terminal_label.scrollTop = output_terminal_label.scrollHeight;
     }
 }
 let pythonRunning = false;

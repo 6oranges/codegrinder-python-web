@@ -3,29 +3,53 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "./ato
   const pyodide = await loadPyodide({
     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.2/full/"
   })
+  // This interrupt buffer needs to be a multiple of 4
   const interrupt = new SharedArrayBuffer(4);
   pyodide.setInterruptBuffer(interrupt);
-  const stdin = new SharedArrayBuffer(1024);
-  const stdout = new SharedArrayBuffer(1024);
-  const stderr = new SharedArrayBuffer(1024);
+  // 4000 was chosen because it is close to a multiple of 2
+  // In case of other book keeping 96 bytes are left
+  const stdin = new SharedArrayBuffer(4000);
+  const stdout = new SharedArrayBuffer(4000);
+  const stderr = new SharedArrayBuffer(4000);
+  const dom = new SharedArrayBuffer(4000);
   const stdinQueue = new AtomicQueue(stdin);
   const stdoutQueue = new AtomicQueue(stdout);
   const stderrQueue = new AtomicQueue(stderr);
   pyodide.setStdin({
     stdin: () => {
-      return new Int8Array(stdinQueue.dequeueAll());
+      return new Int8Array(stdinQueue.dequeueAllSync());
     }
   })
   pyodide.setStdout({
     raw: (byte) => {
-      stdoutQueue.enqueueMultiple([byte]);
+      stdoutQueue.enqueueMultipleSync([byte]);
     }
   })
   pyodide.setStderr({
     raw: (byte) => {
-      stderrQueue.enqueueMultiple([byte]);
+      stderrQueue.enqueueMultipleSync([byte]);
     }
   })
+  // Dom is WIP
+  const domQueue = new AtomicQueue(dom);
+  const handler = {
+    get: function (target, property) {
+      console.log(`Accessed property: ${property}`);
+      return {};
+    },
+    set: function (target, property, value) {
+      console.log(`Set property: ${property} = ${value}`);
+    },
+    apply: function (target, thisArg, argumentsList) {
+      throw new Error("cannot call document");
+    },
+    construct: function (target, argumentsList, newTarget) {
+      throw new Error("cannot construct document");
+    }
+  };
+  const proxy = new Proxy({}, handler);
+  globalThis.document = proxy;
+
   function writeDirectory(directory, path) {
     for (let name of Object.keys(directory.children)) {
       let node = directory.children[name];
@@ -50,7 +74,7 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "./ato
       catch (error) {
         const encoder = new TextEncoder();
         const utf8Bytes = encoder.encode(error.message);
-        stderrQueue.enqueueMultiple(utf8Bytes);
+        stderrQueue.enqueueChunkedMultipleSync(utf8Bytes);
       }
       postMessage({ finishedPython: true });
     }
@@ -61,5 +85,6 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "./ato
     stdout,
     stderr,
     interrupt,
+    dom,
   });
 })()
