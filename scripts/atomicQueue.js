@@ -124,7 +124,7 @@ class AtomicJSONQueue {
     }
     const buff = this.#buffer.splice(0, this.#buffer.indexOf(0));
     this.#buffer.splice(0, 1);
-    return JSON.parse(new TextDecoder().decode(buff));
+    return JSON.parse(new TextDecoder().decode(new Uint8Array(buff)));
   }
   async dequeueMessageAsync() {
     while (!this.#buffer.includes(0)) {
@@ -132,6 +132,6 @@ class AtomicJSONQueue {
     }
     const buff = this.#buffer.splice(0, this.#buffer.indexOf(0));
     this.#buffer.splice(0, 1);
-    return JSON.parse(new TextDecoder().decode(buff));
+    return JSON.parse(new TextDecoder().decode(new Uint8Array(buff)));
   }
 }

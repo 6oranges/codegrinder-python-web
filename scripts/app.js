@@ -1,6 +1,7 @@
 import { Tabs } from './editorTabs.js';
 import { FileSystem, FileSystemUI, extension } from './directoryTree.js';
 import { PythonRunner } from './pythonHandler.js'
+import { CodeGrinder } from './codeGrinder.js';
 const output_terminal_label = document.getElementById("output_terminal")
 const output_terminal = output_terminal_label.getElementsByTagName("pre")[0];
 const input_terminal = output_terminal_label.getElementsByTagName("input")[0];
@@ -17,6 +18,8 @@ const tabs = new Tabs(document.getElementById("tabs"), (path, content) => {
     fileSystemUI.refreshUI();
 });
 const pythonRunner = new PythonRunner();
+const codeGrinder=new CodeGrinder(window.localStorage.getItem("codegrinderCookie"));
+window.debug=codeGrinder;
 
 // Set up example fileSystem
 fetch("python/turtle.py").then(response => response.text()).then(text => {

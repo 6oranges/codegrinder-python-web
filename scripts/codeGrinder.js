@@ -1,141 +1,125 @@
-class CodeGrinder {  // getUsers(){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/users/')
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return data
-  //     // });        
-  //     return usersJSON;
-  // };
-  // getUser(){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/users/')
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return JSON.parse(data[0])
-  //     // });
-  //     return usersJSON[0];
-  // };
-  // getProblemSets(){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/problem_sets/')
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return data
-  //     // });
-  //     return problem_sets_JSON;
-  // };
-  // getProblemSet(id){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/problem_sets/'+id)
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return data
-  //     // });
-  //     problem_sets_JSON.forEach((item)=>{
-  //         if(item.id== id){
-  //             return item;
-  //         }
-  //     });
-  // };
-  // getProblemTypes(){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/problem_types/')
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return data
-  //     // });
-  //     return problem_types_JSON;
-  // };
-  // getProblemType(typeName){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/problem_types/'+typeName)
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return data
-  //     // });
-
-  //     problem_sets_JSON.forEach((item)=>{
-  //         if(item.name== typeName){
-  //             return item;
-  //         }
-  //     });
-  // };
-  // getProblems(problemSetId){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/problem_set/'+problemSetId+'/problems/')
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return data
-  //     // });
-  //     return problems_JSON;
-  // };
-  // getProblem(problemSetId,id){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/problem_set/'+problemSetId+'/problems/'+id)
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return data
-  //     // });
-  //     problem_sets_JSON.forEach((item)=>{
-  //         if(item.id== id){
-  //             return item;
-  //         }
-  //     });
-  // };
-  // getProblemSteps(id){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/problems/'+id+'/steps/')
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return data
-  //     // });
-  //     return problem_steps_JSON;
-  // };
-  // getAProblemStep(problemId,stepId){
-  //     // fetch('https://codegrinder.cs.dixie.edu/v2/problems/'+problemId+'/steps/'+stepId)
-  //     // .then(response => response.json())
-  //     // .then(data => {
-  //     //     return JSON.parse(data)
-  //     // });
-  //     problem_steps_JSON.forEach((item)=>{
-  //         if(item.problemID== problemId && item.step== stepId ){
-  //             return item;
-  //         }
-  //     });
-  // };
-
-  getProblemStepFiles(problem_id, step_id) {
-    let files = {};
-    problem_steps.forEach((item) => {
-      if (item["problemID"] == problem_id && item["step"] == step_id) {
-        files = item["files"];
-      }
-    })
-    return files;
+// Hacky trampoline to get around cors
+// TODO: ask Russ to fix
+// blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource
+function trampoline(url,options){
+  return fetch("/trampoline",{
+    method:"POST",
+    body:JSON.stringify({url,options}),
+    headers: {
+      'Content-Type': "application/json"
+    },
+  })
+}
+class CodeGrinder {
+  constructor (cookie,host="https://codegrinder.cs.utahtech.edu"){
+    this.host=host;
+    this.cookie = cookie
   }
-
-  getProblemTypeFiles(problem_type_name) {
-    let files = {};
-    problem_types.forEach((item) => {
-      if (item["name"] === problem_type_name) {
-        files = item["files"];
-      }
-    })
-    return files;
+  #cookied(url,options){
+    if (!options){
+      options={};
+    }
+    if (!options.headers){
+      options.headers={};
+    }
+    options.headers.Cookie=this.cookie;
+    return trampoline(url,options);
   }
-
-  getExamFiles(problem_id, step_id, problem_type_name) {
-    let files = [];
-    let step_files = this.getProblemStepFiles(problem_id, step_id);
-    let type_files = this.getProblemTypeFiles(problem_type_name);
-    for (let key in step_files) {
-      let file = {};
-      let value = atob(step_files[key])
-      file["filename"] = key;
-      file["filecontent"] = value;
-      // this.pyodide.fs().Pyodide.createFile()
-      files.push(file);
+  async #getObject(path){
+    const response = await this.#cookied(this.host+"/v2"+path);
+    if (response.status!==200){
+      const text = await response.text();
+      console.error(text);
+      return null;
+    } else{
+      const json = await response.json();
+      console.log(json);
+      return json;
     }
-    for (let key in type_files) {
-      let file = {};
-      let value = atob(type_files[key])
-      file["filename"] = key;
-      file["filecontent"] = value;
-      files.push(file);
+  }
+  async login(key){
+    const json = await this.#getObject("/users/session?key="+key);
+    if (json){
+      this.cookie=json.cookie
     }
-    return files;
+    return json;
+  }
+  // Use this to determine if the user is logged in.
+  getMe() {
+    return this.#getObject("/users/me");
+  }
+  getUserAssignments(id){
+    return this.#getObject("/users/"+id+"/assignments");
+  }
+  getAssignment(id){
+    return this.#getObject("/assignments/"+id);
+  }
+  getProblemSets(){
+    return this.#getObject("/problem_sets");
+  }
+  getProblemSet(id){
+    return this.#getObject("/problem_sets/"+id);
+  }
+  getProblemTypes(){
+    return this.#getObject("/problem_types");
+  }
+  getProblemType(typeName){
+    return this.#getObject("/problem_types/"+typeName);
+  }
+  getProblemSetProblems(id){
+    return this.#getObject("/problem_sets/"+id+"/problems");
+  }
+  getProblemSetProblem(problemSetId,id){
+    return this.#getObject("/problem_sets/"+problemSetId+"/problems/"+id);
+  }
+  getProblemSteps(id){
+    return this.#getObject("/problems/"+id+"/steps");
+  }
+  getProblemStep(problemId,step){
+    return this.#getObject("/problems/"+problemId+'/steps/'+step);
+  }
+  getProblem(id){
+    return this.#getObject("/problems/"+id);
+  }
+  getCourse(id){
+    return this.#getObject("/courses/"+id);
+  }
+  getLastCommit(assignmentId,problemId){
+    return this.#getObject("/assignments/"+assignmentId+"/problems/"+problemId+"/commits/last");
+  }
+  async commandGet(assignmentId){
+    const assignment = await this.getAssignment(assignmentId)
+    const course = await this.getCourse(assignment.courseID);
+    const problemSet = await this.getProblemSet(assignment.problemSetID);
+    const problemSetProblems = await this.getProblemSetProblems(assignment.problemSetID)
+    const commits ={};
+    const infos = {};
+    const problems = {};
+    const steps = {};
+    const types= {};
+    for (let elt of problemSetProblems) {
+      const problem=await this.getProblem(elt.problemID);
+      problems[problem.unique]=problem;
+      const info={};
+      const commit=await this.getLastCommit(assignment.id,problem.id);
+      info.id=problem.id;
+      if (commit){
+        info.step=commit.step;
+      } else {
+        info.step = 1;
+      }
+      const step = await this.getProblemStep(problem.id,info.step);
+      infos[problem.unique] = info;
+      commits[problem.unique] = commit;
+      steps[problem.unique] = step;
+      if (step.problemType !== "python3unittest"){
+        console.warning("We only support python3unittest not ",step.problemType)
+      }
+      if (!(step.problemType in types)){
+        types[step.problemType]= await this.getProblemType(step.problemType);
+      }
+    }
+    console.log(commits,infos,problems,steps,types);
   }
 }
 export { CodeGrinder }
