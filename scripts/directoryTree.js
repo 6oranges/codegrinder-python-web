@@ -21,7 +21,7 @@ class DirectoryNode {
 };
 class FileSystem {
   constructor(rootNode = new DirectoryNode()) {
-    if (!(rootNode instanceof DirectoryNode)) {
+    if (!(rootNode.children)) {
       throw new Error("Filesystem must have directory for root");
     }
     this.rootNode = rootNode;
@@ -47,15 +47,15 @@ class FileSystem {
         currNode.children[part] = new DirectoryNode();
       }
       currNode = currNode.children[part];
-      if (!(currNode instanceof DirectoryNode)) {
+      if (!(currNode.children)) {
         throw new Error("Cannot access children of FileNode");
       }
     }
     if (!(name in currNode.children)) {
       currNode.children[name] = new FileNode();
     }
-    if (!(currNode.children[name] instanceof FileNode)) {
-      throw new Error("Referenced Node is not a FileNode");
+    if (currNode.children[name].children) {
+      throw new Error("Referenced Node is a DirectoryNode not a FileNode");
     }
     return currNode.children[name];
   }
@@ -63,9 +63,6 @@ class FileSystem {
 class FileSystemUI {
   constructor(fileSystem, treeElement, fileClick = (fileNode, path) => { }) {
     this.fileSystem = fileSystem;
-    if (!(this.fileSystem instanceof FileSystem)) {
-      throw new Error("FileSystemUI requires a FileSystem");
-    }
     this.treeElement = treeElement;
     this.fileClick = fileClick;
     this.refreshUI();
@@ -78,7 +75,7 @@ class FileSystemUI {
   #presentNode(node, parentContainer, path) {
     const nodeElement = document.createElement('li');
     const nodeName = nameFromPath(path);
-    if (node instanceof DirectoryNode) {
+    if (node.children) {
       nodeElement.innerText = nodeName + "/";
       nodeElement.classList.add("folder");
       if (node.collapsed) {

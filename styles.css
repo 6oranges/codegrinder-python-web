@@ -173,6 +173,14 @@ this project requires webassembly anyway so anything older than that is useless
   grid-area: editor;
 }
 
+.editor-container>div {
+  display: none;
+}
+
+.editor-container>div.active {
+  display: block;
+}
+
 body {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -249,7 +257,8 @@ body {
   padding-bottom: 2em;
 }
 
-#output_terminal input {
+#output_terminal textarea {
   font-family: inherit;
   color: grey;
+  resize: none;
 }

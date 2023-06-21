@@ -178,11 +178,10 @@ class Tabs {
     this.currentTab = tabIndex;
     for (let tab in this.tabs) {
       if (tab == this.currentTab) {
-        this.tabs[tab].editor.style.display = "block";
-        this.tabs[tab].editor.focus();
+        this.tabs[tab].editor.classList.add("active")
         this.tabs[tab].element.classList.add("active");
       } else {
-        this.tabs[tab].editor.style.display = "none";
+        this.tabs[tab].editor.classList.remove("active")
         this.tabs[tab].element.classList.remove("active");
       }
     }

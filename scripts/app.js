@@ -4,7 +4,7 @@ import { PythonRunner } from './pythonHandler.js'
 import { CodeGrinder } from './codeGrinder.js';
 const output_terminal_label = document.getElementById("output_terminal")
 const output_terminal = output_terminal_label.getElementsByTagName("pre")[0];
-const input_terminal = output_terminal_label.getElementsByTagName("input")[0];
+const input_terminal = output_terminal_label.getElementsByTagName("textarea")[0];
 const run = document.getElementById("run");
 const mdElement = document.getElementById("instructions");
 const sideBarToggleElement = document.getElementById("side_bar_toggle");
@@ -18,8 +18,8 @@ const tabs = new Tabs(document.getElementById("tabs"), (path, content) => {
     fileSystemUI.refreshUI();
 });
 const pythonRunner = new PythonRunner();
-const codeGrinder=new CodeGrinder(window.localStorage.getItem("codegrinderCookie"));
-window.debug=codeGrinder;
+const codeGrinder = new CodeGrinder(window.localStorage.getItem("codegrinderCookie"));
+window.debug = codeGrinder;
 
 // Set up example fileSystem
 fetch("python/turtle.py").then(response => response.text()).then(text => {
@@ -37,7 +37,8 @@ a list as a parameter and returns the first and last
 elements of that list but as part of a new list. If
 the original list is empty, return an empty list instead.
 Unit test this function sufficiently.`;
-fileSystem.touch("/test.py").content = `raise Exception("123456"*1000)#import turtle
+fileSystem.touch("/test.py").content = `while True:
+    print(input())#import turtle
 #turtle.forward(100)`
 fileSystemUI.refreshUI();
 tabs.addSwitchTab('/test.py', fileSystem.touch('/test.py').content);
@@ -106,10 +107,12 @@ pythonRunner.ready.then(() => {
 });
 input_terminal.addEventListener("keydown", (e) => {
     if (e.code === "Enter" && pythonRunning) {
-        writeTerminal(input_terminal.value + "\n", "grey");
-        pythonRunner.writeStdin(input_terminal.value + "\n");
+        let value = input_terminal.value + "\n";
+        writeTerminal(value, "grey");
+        pythonRunner.writeStdin(value);
         input_terminal.value = "";
         input_terminal.focus();
+        e.preventDefault();
     }
 })
 pythonRunner.setStdoutCallback((str) => {
