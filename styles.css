@@ -2,7 +2,7 @@
 I am not supporting ancient browser's css quirks
 this project requires webassembly anyway so anything older than that is useless
 */
-* {
+:not(:where(#instructions *)) {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
@@ -12,21 +12,30 @@ this project requires webassembly anyway so anything older than that is useless
   outline: none;
 }
 
-#nav_bar li button {
-  color: white;
-  padding: 14px 16px;
-  width: fit-content;
-  float: left;
-}
-
-#nav_bar li button:hover {
-  background-color: #111;
+button:hover {
   cursor: pointer;
 }
 
-#nav_bar li button:disabled {
-  background-color: #444;
+button:disabled {
   cursor: initial;
+}
+
+#nav_bar>li {
+  float: left;
+}
+
+#nav_bar>li>button {
+  color: white;
+  padding: 14px 16px;
+  width: fit-content;
+}
+
+#nav_bar>li>button:hover {
+  background-color: #111;
+}
+
+#nav_bar>li>button:disabled {
+  background-color: #444;
   color: grey;
 }
 
@@ -38,8 +47,8 @@ this project requires webassembly anyway so anything older than that is useless
 
 /*======================SIDEBAR======================*/
 /* The side navigation menu */
-#side_bar {
-  width: 0;
+#files_list {
+  display: none;
   background-color: #111;
   overflow: hidden;
   position: absolute;
@@ -53,20 +62,20 @@ this project requires webassembly anyway so anything older than that is useless
 }
 
 /* The navigation menu links */
-#side_bar li {
+#files_list li {
   padding: 4px 0px 0px 16px;
   color: white;
   display: block;
 }
 
 /* When you mouse over the navigation links, change their color */
-#side_bar li:hover {
+#files_list li:hover {
   color: #0772ff;
   cursor: pointer;
 }
 
 /* Remove default bullets */
-#side_bar ul {
+#files_list ul {
   list-style-type: none;
   overflow: hidden;
   width: fit-content
@@ -132,7 +141,6 @@ this project requires webassembly anyway so anything older than that is useless
   margin-right: 2px;
   margin-left: 2px;
   border-radius: 2px;
-  cursor: pointer;
 }
 
 .tabs-container li button:hover {
@@ -261,4 +269,20 @@ body {
   font-family: inherit;
   color: grey;
   resize: none;
+  overflow: hidden;
+}
+
+.dropdown {
+  list-style-type: none;
+  background-color: #111;
+  display: none;
+  overflow: hidden;
+  position: absolute;
+  /* To show up in front of the editor*/
+  z-index: 5;
+}
+
+.dropdown>li>button {
+  padding: 4px;
+  color: white;
 }

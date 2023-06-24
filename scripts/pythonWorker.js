@@ -3,6 +3,41 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "./ato
   const pyodide = await loadPyodide({
     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.2/full/"
   })
+  pyodide.runPython(`
+import sys
+import importlib
+def invalidate_import_cache():
+    # Get a copy of the current module dictionary
+    module_dict = dict(sys.modules)
+
+    # Iterate over the modules and remove them from sys.modules
+    for module_name in module_dict:
+        if module_name not in sys.modules:
+            continue
+
+        module = sys.modules[module_name]
+        if hasattr(module, '__file__') and module.__file__ is not None and module.__file__.startswith("/home/pyodide/"):
+            # Remove the module from sys.modules
+            del sys.modules[module_name]
+def run_script(script_path):
+    invalidate_import_cache()
+    with open(script_path, 'r') as file:
+        script_code = compile(file.read(), script_path, 'exec')
+
+    # Save the original values
+    original_argv = sys.argv.copy()
+
+    # Modify the values
+    sys.argv = [script_path]
+
+    try:
+        exec(script_code, globals())
+    except SystemExit:
+        pass
+    finally:
+        # Restore the original values
+        sys.argv = original_argv
+  `)
   // This interrupt buffer needs to be a multiple of 4
   const interrupt = new SharedArrayBuffer(4);
   pyodide.setInterruptBuffer(interrupt);
@@ -51,7 +86,7 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "./ato
   globalThis.document = proxy;
 
   function writeDirectory(directory, path) {
-    for (let name of Object.keys(directory.children)) {
+    for (let name in directory.children) {
       let node = directory.children[name];
       // If is directory
       if (node.children) {
@@ -69,9 +104,10 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "./ato
     }
     if (data.run) {
       try {
-        pyodide.runPython(pyodide.FS.readFile("." + data.run, { encoding: 'utf8' }));
+        pyodide.runPython(`run_script(".${data.run}")`);
       }
       catch (error) {
+        console.log(error);
         const encoder = new TextEncoder();
         const utf8Bytes = encoder.encode(error.message);
         stderrQueue.enqueueChunkedMultipleSync(utf8Bytes);

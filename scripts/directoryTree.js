@@ -16,7 +16,7 @@ class FileNode {
 class DirectoryNode {
   constructor(children = {}) {
     this.children = children;
-    this.collapsed = false;
+    this.collapsed = true;
   };
 };
 class FileSystem {
@@ -25,6 +25,7 @@ class FileSystem {
       throw new Error("Filesystem must have directory for root");
     }
     this.rootNode = rootNode;
+    this.rootNode.collapsed = false;
   }
   // Returns the FileNode at path or creates it
   // Throws if path has problems such as
@@ -59,6 +60,10 @@ class FileSystem {
     }
     return currNode.children[name];
   }
+  clear() {
+    this.rootNode = new DirectoryNode();
+    this.rootNode.collapsed = false;
+  }
 }
 class FileSystemUI {
   constructor(fileSystem, treeElement, fileClick = (fileNode, path) => { }) {
@@ -73,8 +78,12 @@ class FileSystemUI {
   };
   // Private method to add a node to the UI recursively
   #presentNode(node, parentContainer, path) {
-    const nodeElement = document.createElement('li');
     const nodeName = nameFromPath(path);
+    // Hide hidden files
+    if (nodeName.startsWith(".")) {
+      return;
+    }
+    const nodeElement = document.createElement('li');
     if (node.children) {
       nodeElement.innerText = nodeName + "/";
       nodeElement.classList.add("folder");
@@ -82,7 +91,7 @@ class FileSystemUI {
         nodeElement.classList.add("collapsed")
       }
       const nodeUL = document.createElement('ul');
-      for (let child of Object.keys(node.children)) {
+      for (let child in node.children) {
         this.#presentNode(node.children[child], nodeUL, path + "/" + child);
       }
       nodeElement.appendChild(nodeUL);

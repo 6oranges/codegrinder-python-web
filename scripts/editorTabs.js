@@ -97,8 +97,10 @@ class Tabs {
     this.editorListElement.classList.add("editor-container");
     this.tabbedEditorElement.appendChild(this.editorListElement);
     this.pathInput.addEventListener("change", () => {
-      this.tabs[this.currentTab].saved = false;
-      this.tabs[this.currentTab].path = this.pathInput.value;
+      if (this.tabs[this.currentTab]) {
+        this.tabs[this.currentTab].saved = false;
+        this.tabs[this.currentTab].path = this.pathInput.value;
+      }
     })
 
     this.saveHandler = saveHandler;
@@ -107,7 +109,7 @@ class Tabs {
 
     // Attach a listener to the resize event of the editor's container
     new ResizeObserver(() => {
-      this.tabs[this.currentTab].updateSize();
+      this.tabs[this.currentTab]?.updateSize();
     }).observe(this.editorListElement);
   };
   saveTab(tab) {
@@ -126,7 +128,7 @@ class Tabs {
     }
     tab.saved = true;
     if (tab === this.tabs[this.currentTab]) {
-      this.pathInput.value = this.tabs[this.currentTab].path;
+      this.pathInput.value = this.tabs[this.currentTab]?.path;
     }
     this.saveHandler(tab.path, tab.content);
   }
@@ -138,6 +140,35 @@ class Tabs {
       this.saveTab(tab);
     }
   }
+  closeTab(tab, canCloseLast) {
+    const currentTab = this.tabs[this.currentTab];
+    const closingCurrent = currentTab === tab;
+    this.tabListElement.removeChild(tab.element);
+    this.editorListElement.removeChild(tab.editor);
+    const index = this.tabs.indexOf(tab);
+    tab.destroy();
+    this.tabs.splice(index, 1);
+    if (closingCurrent) {
+      if (!canCloseLast && this.tabs.length === 0) {
+        this.addNewTab();
+      }
+      if (this.tabs.length > 0) {
+        this.switchTab(0);
+      }
+    } else {
+      this.switchTab(this.tabs.indexOf(currentTab));
+    }
+  }
+  tryCloseTab(tab, canCloseLast = false) {
+    if (!tab.saved) {
+      const result = window.confirm(tab.name + " is not saved, close anyway?")
+      if (!result) {
+        return false;
+      }
+    }
+    this.closeTab(tab, canCloseLast);
+    return true;
+  }
   addNewTab(tab = new Tab()) {
     tab.saveHandler = (path, content) => {
       this.saveTab(tab);
@@ -147,27 +178,7 @@ class Tabs {
     })
     tab.closeElement.addEventListener('click', (event) => {
       event.stopPropagation();
-      if (!tab.saved) {
-        const result = window.confirm(tab.name + " is not saved, close anyway?")
-        if (!result) {
-          return;
-        }
-      }
-      const currentTab = this.tabs[this.currentTab];
-      const closingCurrent = currentTab === tab;
-      this.tabListElement.removeChild(tab.element);
-      this.editorListElement.removeChild(tab.editor);
-      const index = this.tabs.indexOf(tab);
-      tab.destroy();
-      this.tabs.splice(index, 1);
-      if (closingCurrent) {
-        if (this.tabs.length === 0) {
-          this.addNewTab();
-        }
-        this.switchTab(0);
-      } else {
-        this.switchTab(this.tabs.indexOf(currentTab));
-      }
+      this.tryCloseTab(tab);
     });
     this.tabListElement.appendChild(tab.element);
     this.editorListElement.appendChild(tab.editor);
@@ -185,8 +196,8 @@ class Tabs {
         this.tabs[tab].element.classList.remove("active");
       }
     }
-    this.tabs[this.currentTab].updateSize();
-    this.pathInput.value = this.tabs[this.currentTab].path;
+    this.tabs[this.currentTab]?.updateSize();
+    this.pathInput.value = this.tabs[this.currentTab]?.path;
   };
   addSwitchTab(path, content) {
     for (let tab in this.tabs) {
@@ -196,6 +207,11 @@ class Tabs {
       }
     }
     this.addNewTab(new Tab(path, content));
+  }
+  closeAll() {
+    while (this.tabs.length > 0) {
+      this.closeTab(this.tabs[0], true);
+    }
   }
 };
 export { Tab, Tabs };

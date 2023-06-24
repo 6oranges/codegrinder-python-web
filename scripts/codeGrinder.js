@@ -29,11 +29,10 @@ class CodeGrinder {
     const response = await this.#cookied(this.host + "/v2" + path);
     if (response.status !== 200) {
       const text = await response.text();
-      console.error(text);
+      // console.error(text);
       return null;
     } else {
       const json = await response.json();
-      console.log(json);
       return json;
     }
   }
@@ -87,11 +86,13 @@ class CodeGrinder {
   getLastCommit(assignmentId, problemId) {
     return this.#getObject("/assignments/" + assignmentId + "/problems/" + problemId + "/commits/last");
   }
+  // See Russ Ross github codegrinder project CLI get.go method.
   async commandGet(assignmentId) {
-    const assignment = await this.getAssignment(assignmentId)
-    const course = await this.getCourse(assignment.courseID);
-    const problemSet = await this.getProblemSet(assignment.problemSetID);
-    const problemSetProblems = await this.getProblemSetProblems(assignment.problemSetID)
+    const assignment = await this.getAssignment(assignmentId);
+    // Codegrinder CMD called these functions but we don't use them
+    // const course = await this.getCourse(assignment.courseID);
+    // const problemSet = await this.getProblemSet(assignment.problemSetID);
+    const problemSetProblems = await this.getProblemSetProblems(assignment.problemSetID);
     const commits = {};
     const infos = {};
     const problems = {};
@@ -113,13 +114,157 @@ class CodeGrinder {
       commits[problem.unique] = commit;
       steps[problem.unique] = step;
       if (step.problemType !== "python3unittest") {
-        console.warning("We only support python3unittest not ", step.problemType)
+        console.warning("This only supports python3unittest not ", step.problemType)
       }
       if (!(step.problemType in types)) {
         types[step.problemType] = await this.getProblemType(step.problemType);
       }
     }
-    console.log(commits, infos, problems, steps, types);
+    const problemsFiles = {};
+    for (let unique in steps) {
+      const commit = commits[unique];
+      const problem = problems[unique];
+      const step = steps[unique];
+      problemsFiles[unique] = {};
+      const files = problemsFiles[unique];
+      for (let name in step.files) {
+        files[name] = atob(step.files[name]);
+      }
+      files["doc/index.html"] = step.instructions;
+
+      if (commit !== null) {
+        for (let name in commit.files) {
+          files[name] = atob(commit.files[name]);
+        }
+      }
+
+      for (let name in types[step.problemType].files) {
+        if (files[name] !== undefined) {
+          console.log("warning: problem type file is overwriting problem file: " + name);
+        }
+        files[name] = atob(types[step.problemType].files[name]);
+      }
+      // Not implemented
+      if (commit !== null && commit.reportCard !== null && commit.reportCard.Passed && commit.score === 1.0) {
+        nextStep(target, infos[unique], problem, commit, types);
+      }
+    }
+
+    const dotFile = {
+      assignmentID: assignment.id,
+      problems: infos,
+    };
+    return { problemsFiles, dotFile };
   }
 }
-export { CodeGrinder }
+class CodeGrinderUI {
+  constructor(navBar, codeGrinder = new CodeGrinder("codegrinder=notloggedin"),
+    authenticatorHandler = (cookie) => { },
+    problemSetHandler = ({ problemsFiles, dotFile }) => { },
+    runTestsHandler = () => { }) {
+    this.codeGrinder = codeGrinder;
+    const liAssignments = document.createElement("li");
+    const liProgress = document.createElement("li");
+    const liProblems = document.createElement("li");
+    const liRunTests = document.createElement("li");
+    const liGrade = document.createElement("li");
+    const liSync = document.createElement("li");
+    const liAuthenticator = document.createElement("li");
+    navBar.appendChild(liAssignments);
+    navBar.appendChild(liProgress);
+    navBar.appendChild(liProblems);
+    navBar.appendChild(liRunTests);
+    navBar.appendChild(liGrade);
+    navBar.appendChild(liSync);
+    navBar.appendChild(liAuthenticator);
+    this.buttonAssignments = document.createElement("button");
+    this.spanProgress = document.createElement("span");
+    this.buttonProblems = document.createElement("button");
+    this.buttonRunTests = document.createElement("button");
+    this.buttonGrade = document.createElement("button");
+    this.buttonSync = document.createElement("button");
+    this.buttonAuthenticator = document.createElement("button");
+    liAssignments.appendChild(this.buttonAssignments);
+    liProgress.appendChild(this.spanProgress);
+    liProblems.appendChild(this.buttonProblems);
+    liRunTests.appendChild(this.buttonRunTests);
+    liGrade.appendChild(this.buttonGrade);
+    liSync.appendChild(this.buttonSync);
+    liAuthenticator.appendChild(this.buttonAuthenticator);
+    this.buttonAssignments.innerText = "Assignments";
+    this.spanProgress.innerText = "50%";
+    this.buttonProblems.innerText = "Problems";
+    this.buttonRunTests.innerText = "Run Tests";
+    this.buttonGrade.innerText = "Submit for grading";
+    this.buttonSync.innerText = "Save & Sync";
+
+    this.authenticatorHandler = authenticatorHandler;
+    this.problemSetHandler = problemSetHandler;
+    this.runTestsHandler = runTestsHandler;
+    this.me = this.codeGrinder.getMe();
+
+    this.assignmentsList = document.createElement("ol");
+    this.assignmentsList.classList.add("dropdown");
+    liAssignments.appendChild(this.assignmentsList);
+
+    this.problemsList = document.createElement("ol");
+    this.problemsList.classList.add("dropdown");
+    liProblems.appendChild(this.problemsList);
+
+    this.buttonRunTests.addEventListener("click", () => {
+      this.runTestsHandler();
+    })
+    this.buttonAuthenticator.addEventListener("click", async () => {
+      let user = await this.me;
+      if (user) {
+        this.codeGrinder.cookie = undefined;
+      } else {
+        const parts = window.prompt("CodeGrinder login key").trim().split(" ");
+        this.buttonAuthenticator.disabled = true;
+        await this.codeGrinder.login(parts[parts.length - 1]);
+        this.buttonAuthenticator.disabled = false;
+      }
+      this.authenticatorHandler(this.codeGrinder.cookie);
+      this.me = this.codeGrinder.getMe();
+      await this.#updateAuthenticationStatus();
+    })
+    this.buttonAssignments.addEventListener("click", async () => {
+      const user = await this.me;
+      if (!user) return;
+      const assignments = await this.codeGrinder.getUserAssignments(user.id);
+      this.assignmentsList.style.display = "block";
+      this.assignmentsList.innerText = "";
+      for (let assignment of assignments) {
+        const li = document.createElement("li");
+        const button = document.createElement("button");
+        button.innerText = assignment.canvasTitle;
+        li.appendChild(button);
+        this.assignmentsList.appendChild(li);
+        button.addEventListener("click", async () => {
+          const info = await this.codeGrinder.commandGet(assignment.id);
+          this.problemSetHandler(info);
+        })
+      }
+    })
+    document.addEventListener("click", event => {
+      if (event.target !== this.buttonAssignments) {
+        this.assignmentsList.style.display = "none";
+      }
+    })
+    this.#updateAuthenticationStatus();
+  }
+  async #updateAuthenticationStatus() {
+    const user = await this.me;
+    if (!user) {
+      this.buttonAuthenticator.innerText = "Login";
+    } else {
+      this.buttonAuthenticator.innerText = "Logout";
+    }
+    this.buttonAssignments.disabled = !Boolean(user);
+    this.buttonProblems.disabled = !Boolean(user);
+    this.buttonRunTests.disabled = !Boolean(user);
+    this.buttonGrade.disabled = !Boolean(user);
+    this.buttonSync.disabled = !Boolean(user);
+  }
+}
+export { CodeGrinder, CodeGrinderUI }

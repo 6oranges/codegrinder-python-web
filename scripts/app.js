@@ -1,14 +1,18 @@
 import { Tabs } from './editorTabs.js';
 import { FileSystem, FileSystemUI, extension } from './directoryTree.js';
 import { PythonRunner } from './pythonHandler.js'
-import { CodeGrinder } from './codeGrinder.js';
+import { CodeGrinder, CodeGrinderUI } from './codeGrinder.js';
 const output_terminal_label = document.getElementById("output_terminal")
 const output_terminal = output_terminal_label.getElementsByTagName("pre")[0];
 const input_terminal = output_terminal_label.getElementsByTagName("textarea")[0];
+const filesButton = document.getElementById("files_button");
+const filesList = document.getElementById("files_list");
 const run = document.getElementById("run");
+const newTab = document.getElementById("new_tab");
+const saveCurrent = document.getElementById("save_current");
+const saveAll = document.getElementById("save_all");
 const mdElement = document.getElementById("instructions");
-const sideBarToggleElement = document.getElementById("side_bar_toggle");
-const sideBar = document.getElementById("side_bar");
+const navBar = document.getElementById("nav_bar");
 const md = window.markdownit();
 const fileSystem = new FileSystem();
 const fileSystemUI = new FileSystemUI(fileSystem, document.getElementById("directory_tree"));
@@ -17,62 +21,38 @@ const tabs = new Tabs(document.getElementById("tabs"), (path, content) => {
     fout.content = content;
     fileSystemUI.refreshUI();
 });
+
 const pythonRunner = new PythonRunner();
-const codeGrinder = new CodeGrinder(window.localStorage.getItem("codegrinderCookie"));
-window.debug = codeGrinder;
+const codegrinderCookie = "codegrinderCookie";
+const codeGrinder = new CodeGrinder(window.localStorage.getItem(codegrinderCookie));
+const codeGrinderUI = new CodeGrinderUI(navBar, codeGrinder, cookie => window.localStorage.setItem(codegrinderCookie, cookie));
+const urlParams = new URLSearchParams(window.location.search);
 
-// Set up example fileSystem
-fetch("python/turtle.py").then(response => response.text()).then(text => {
-    fileSystem.touch("/turtle.py").content = text;
-    fileSystemUI.refreshUI();
-})
-fetch("python/svg.py").then(response => response.text()).then(text => {
-    fileSystem.touch("/svg.py").content = text;
-    fileSystemUI.refreshUI();
-})
-fileSystem.touch("/doc.md").content = `
-# 31.4) Bookend List
-Create a function \`bookend_list\` that consumes
-a list as a parameter and returns the first and last
-elements of that list but as part of a new list. If
-the original list is empty, return an empty list instead.
-Unit test this function sufficiently.`;
-fileSystem.touch("/test.py").content = `while True:
-    print(input())#import turtle
-#turtle.forward(100)`
-fileSystemUI.refreshUI();
-tabs.addSwitchTab('/test.py', fileSystem.touch('/test.py').content);
-
-// Set up sidebar
-let sideBarOpen = false;
-function toggleSideBar(e) {
-    sideBarOpen = !sideBarOpen;
-    sideBar.style.width = sideBarOpen ? "fit-content" : "0"
-    sideBarToggleElement.innerText = sideBarOpen ? "<<" : ">>";
-    e?.stopPropagation();
-}
-// Click away from file tree to close
-document.addEventListener("click", (e) => {
-    if (sideBarOpen) {
-        toggleSideBar(e);
+// Set up files dropdown
+filesButton.addEventListener("click", () => {
+    filesList.style.display = "block";
+});
+// Click away from dropdowns to close
+document.addEventListener("click", event => {
+    if (event.target !== filesButton) {
+        filesList.style.display = "none";
     }
 })
-sideBarToggleElement.addEventListener("click", toggleSideBar);
 
 // Set up tabs
 fileSystemUI.fileClick = (fileNode, path) => {
+    filesList.style.display = "none";
     tabs.addSwitchTab(path, fileNode.content);
-    toggleSideBar();
     if (extension(path) === "md") {
         mdElement.innerHTML = md.render(fileNode.content);
+    } else if (extension(path) === "html") {
+        console.warn("Running potentially untrusted html");
+        mdElement.innerHTML = fileNode.content;
     }
 };
-const newTab = document.getElementById("new_tab");
 newTab.addEventListener("click", () => {
     tabs.addNewTab();
 })
-const saveCurrent = document.getElementById("save_current");
-const saveAll = document.getElementById("save_all");
 saveCurrent.addEventListener("click", () => {
     tabs.saveCurrentTab();
 })
@@ -98,6 +78,8 @@ function writeTerminal(str, color) {
         output_terminal_label.scrollTop = output_terminal_label.scrollHeight;
     }
 }
+
+// Set up python
 let pythonRunning = false;
 run.disabled = true;
 pythonRunner.ready.then(() => {
@@ -105,23 +87,23 @@ pythonRunner.ready.then(() => {
     run.innerText = "Run";
     writeTerminal(">> ", "orange");
 });
-input_terminal.addEventListener("keydown", (e) => {
-    if (e.code === "Enter" && pythonRunning) {
+input_terminal.addEventListener("keydown", event => {
+    if (event.code === "Enter" && pythonRunning) {
         let value = input_terminal.value + "\n";
         writeTerminal(value, "grey");
         pythonRunner.writeStdin(value);
         input_terminal.value = "";
         input_terminal.focus();
-        e.preventDefault();
+        event.preventDefault();
     }
 })
-pythonRunner.setStdoutCallback((str) => {
+pythonRunner.setStdoutCallback(str => {
     writeTerminal(str, "black");
 })
-pythonRunner.setStderrCallback((str) => {
+pythonRunner.setStderrCallback(str => {
     writeTerminal(str, "red");
 });
-run.addEventListener("click", async () => {
+async function runPython(path) {
     if (pythonRunning) {
         run.disabled = true;
         pythonRunning = false;
@@ -130,12 +112,76 @@ run.addEventListener("click", async () => {
     } else {
         run.innerText = "Stop"
         pythonRunning = true;
-        writeTerminal("Running " + tabs.tabs[tabs.currentTab].path + "\n", "orange");
-        await pythonRunner.runPython(fileSystem, tabs.tabs[tabs.currentTab].path);
+        writeTerminal("Running " + path + "\n", "orange");
+        await pythonRunner.runPython(fileSystem, path);
         await pythonRunner.ready;
         writeTerminal(">> ", "orange");
         pythonRunning = false;
         run.innerText = "Run";
         run.disabled = false;
     }
+}
+run.addEventListener("click", () => {
+    runPython(tabs.tabs[tabs.currentTab].path);
 })
+
+// Set up codegrinder
+let currentProblemsFiles;
+let currentDotFile;
+function switchProblem(identifier) {
+    fileSystem.clear();
+    tabs.closeAll();
+    for (let filename in currentProblemsFiles[identifier]) {
+        const content = currentProblemsFiles[identifier][filename];
+        fileSystem.touch("/" + filename).content = content;
+        if (!filename.includes("test") && !(["doc/doc.md", "doc/index.html", "Makefile", ".gitignore"].includes(filename))) {
+            tabs.addSwitchTab("/" + filename, content);
+        }
+    }
+    fileSystem.touch("/.run_all_tests.py").content = `
+import unittest
+loader = unittest.TestLoader()
+start_dir = './tests'
+suite = loader.discover(start_dir)
+runner = unittest.TextTestRunner()
+runner.run(suite)`;
+    mdElement.innerHTML = fileSystem.touch("/doc/index.html").content;
+    fileSystemUI.refreshUI();
+}
+function problemSetHandler({ problemsFiles, dotFile }) {
+    currentProblemsFiles = problemsFiles;
+    currentDotFile = dotFile;
+    console.log(currentDotFile);
+
+    codeGrinderUI.problemsList.innerText = "";
+    for (let problem in currentDotFile.problems) {
+        const li = document.createElement("li");
+        const button = document.createElement("button");
+        button.innerText = problem;
+        li.appendChild(button);
+        codeGrinderUI.problemsList.appendChild(li);
+        button.addEventListener("click", async () => {
+            switchProblem(problem);
+        })
+    }
+    switchProblem(Object.keys(problemsFiles)[0]);
+}
+codeGrinderUI.runTestsHandler = () => runPython("/.run_all_tests.py");
+codeGrinderUI.problemSetHandler = problemSetHandler;
+codeGrinderUI.buttonProblems.addEventListener("click", () => {
+    codeGrinderUI.problemsList.style.display = "block";
+})
+document.addEventListener("click", event => {
+    if (event.target !== codeGrinderUI.buttonProblems) {
+        codeGrinderUI.problemsList.style.display = "none";
+    }
+})
+const urlAssignment = urlParams.get('assignment');
+if (urlAssignment) {
+    // Simplify interface if assignment is known
+    newTab.style.display = "none";
+    saveCurrent.style.display = "none";
+    saveAll.style.display = "none";
+    codeGrinderUI.buttonAssignments.style.display = "none";
+    codeGrinder.commandGet(urlAssignment).then(res => problemSetHandler(res));
+}

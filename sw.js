@@ -14,7 +14,7 @@ async function updateCache(request) {
     // Respond and add the network response to the cache
     cache.put(request, responseClone);
     return response;
-  }).catch(err=>{});
+  }).catch(err => { });
 
   const response = await cache.match(request);
   if (response) {
@@ -56,14 +56,14 @@ async function cacheFirst(request) {
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  if (request.method!=="GET"){
+  if (request.method !== "GET") {
     return;
   }
   const url = new URL(request.url);
   if (url.host == location.host) {
     // Local files are small and should be updated if possible
     event.respondWith(updateCache(request));
-  } else if (url.host == "cdn.jsdelivr.net"){
+  } else if (url.host == "cdn.jsdelivr.net") {
     // large files from CDNs
     event.respondWith(cacheFirst(request));
   }
