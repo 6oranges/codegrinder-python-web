@@ -64,19 +64,19 @@ saveAll.addEventListener("click", () => {
 let previousSpan = document.createElement("span");
 function writeTerminal(str, color) {
     if (previousSpan.style.color !== color) {
+        const resetFocus = document.activeElement === input_terminal;
         previousSpan = document.createElement("span");
         previousSpan.style.color = color;
         output_terminal.appendChild(previousSpan);
-        const resetFocus = document.activeElement === input_terminal;
         output_terminal.appendChild(input_terminal);
         if (resetFocus) {
             input_terminal.focus();
         }
     }
-    previousSpan.innerText += str;
     if (str.includes("\n")) {
         output_terminal_label.scrollTop = output_terminal_label.scrollHeight;
     }
+    previousSpan.innerText += str;
 }
 
 // Set up python
@@ -168,14 +168,6 @@ function problemSetHandler({ problemsFiles, dotFile }) {
 }
 codeGrinderUI.runTestsHandler = () => runPython("/.run_all_tests.py");
 codeGrinderUI.problemSetHandler = problemSetHandler;
-codeGrinderUI.buttonProblems.addEventListener("click", () => {
-    codeGrinderUI.problemsList.style.display = "block";
-})
-document.addEventListener("click", event => {
-    if (event.target !== codeGrinderUI.buttonProblems) {
-        codeGrinderUI.problemsList.style.display = "none";
-    }
-})
 const urlAssignment = urlParams.get('assignment');
 if (urlAssignment) {
     // Simplify interface if assignment is known

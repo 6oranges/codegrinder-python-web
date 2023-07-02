@@ -74,21 +74,23 @@ class PythonWorker {
         callback(string);
       }
       // don't block page
-      await new Promise((accept) => setTimeout(() => accept(), 0));
+      await new Promise((accept) => setTimeout(() => accept(), 100));
     }
   }
 }
 class PythonRunner {
   #worker;
+  #stdoutCallback;
+  #stderrCallback;
   constructor(stdoutCallback = (str) => { }, stderrCallback = (str) => { }) {
-    this.stdoutCallback = stdoutCallback;
-    this.stderrCallback = stderrCallback;
-    this.#worker = new PythonWorker(this.stdoutCallback, this.stderrCallback);
+    this.#stdoutCallback = stdoutCallback;
+    this.#stderrCallback = stderrCallback;
+    this.#worker = new PythonWorker(this.#stdoutCallback, this.#stderrCallback);
     this.ready = this.#worker.ready;
   }
   stopPython() {
     this.#worker.destroy();
-    this.#worker = new PythonWorker(this.stdoutCallback, this.stderrCallback);
+    this.#worker = new PythonWorker(this.#stdoutCallback, this.#stderrCallback);
     this.ready = this.#worker.ready;
   }
   async runPython(fileSystem, path) {
@@ -98,11 +100,11 @@ class PythonRunner {
     await this.#worker.runPython(fileSystem, path);
   }
   setStdoutCallback(callback) {
-    this.stdoutCallback = callback;
+    this.#stdoutCallback = callback;
     this.#worker.stdoutCallback = callback;
   }
   setStderrCallback(callback) {
-    this.stderrCallback = callback;
+    this.#stderrCallback = callback;
     this.#worker.stderrCallback = callback;
   }
   async writeStdin(str) {

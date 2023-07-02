@@ -41,7 +41,7 @@ def run_script(script_path):
   // This interrupt buffer needs to be a multiple of 4
   const interrupt = new SharedArrayBuffer(4);
   pyodide.setInterruptBuffer(interrupt);
-  // 4000 was chosen because it is close to a multiple of 2
+  // 4000 was chosen because it is around a RAM page in common systems
   // In case of other book keeping 96 bytes are left
   const stdin = new SharedArrayBuffer(4000);
   const stdout = new SharedArrayBuffer(4000);
@@ -85,6 +85,8 @@ def run_script(script_path):
   const proxy = new Proxy({}, handler);
   globalThis.document = proxy;
 
+  // Load a directory into the pyodide virtual filesystem (emscripten)
+  // We are using our abstraction defined in directoryTree.js
   function writeDirectory(directory, path) {
     for (let name in directory.children) {
       let node = directory.children[name];
@@ -97,9 +99,22 @@ def run_script(script_path):
       }
     }
   }
+  function deleteRecursively(path, onlyChildren = false) {
+    if (pyodide.FS.isDir(path)) {
+      const files = pyodide.FS.readdir(path);
+      files.forEach((file) => {
+        const filePath = path + '/' + file;
+        deleteRecursively(filePath);
+      });
+      if (!onlyChildren) pyodide.FS.rmdir(path);
+    } else {
+      if (!onlyChildren) pyodide.FS.unlink(path);
+    }
+  };
   addEventListener("message", (e) => {
     const data = e.data;
     if (data.fileSystem) {
+      deleteRecursively(".", true);
       writeDirectory(data.fileSystem.rootNode, "./");
     }
     if (data.run) {
@@ -107,7 +122,6 @@ def run_script(script_path):
         pyodide.runPython(`run_script(".${data.run}")`);
       }
       catch (error) {
-        console.log(error);
         const encoder = new TextEncoder();
         const utf8Bytes = encoder.encode(error.message);
         stderrQueue.enqueueChunkedMultipleSync(utf8Bytes);

@@ -86,7 +86,7 @@ class CodeGrinder {
   getLastCommit(assignmentId, problemId) {
     return this.#getObject("/assignments/" + assignmentId + "/problems/" + problemId + "/commits/last");
   }
-  // See Russ Ross github codegrinder project CLI get.go method.
+  // See https://github.com/russross/codegrinder/blob/70d9a02cc8e3cf2868f19bb26e5b0b17304ccbc1/cli/get.go#L48C54-L48C54
   async commandGet(assignmentId) {
     const assignment = await this.getAssignment(assignmentId);
     // Codegrinder CMD called these functions but we don't use them
@@ -144,7 +144,7 @@ class CodeGrinder {
         }
         files[name] = atob(types[step.problemType].files[name]);
       }
-      // Not implemented
+      // TODO: Not implemented
       if (commit !== null && commit.reportCard !== null && commit.reportCard.Passed && commit.score === 1.0) {
         nextStep(target, infos[unique], problem, commit, types);
       }
@@ -164,35 +164,30 @@ class CodeGrinderUI {
     runTestsHandler = () => { }) {
     this.codeGrinder = codeGrinder;
     const liAssignments = document.createElement("li");
-    const liProgress = document.createElement("li");
     const liProblems = document.createElement("li");
     const liRunTests = document.createElement("li");
     const liGrade = document.createElement("li");
     const liSync = document.createElement("li");
     const liAuthenticator = document.createElement("li");
     navBar.appendChild(liAssignments);
-    navBar.appendChild(liProgress);
     navBar.appendChild(liProblems);
     navBar.appendChild(liRunTests);
     navBar.appendChild(liGrade);
     navBar.appendChild(liSync);
     navBar.appendChild(liAuthenticator);
     this.buttonAssignments = document.createElement("button");
-    this.spanProgress = document.createElement("span");
     this.buttonProblems = document.createElement("button");
     this.buttonRunTests = document.createElement("button");
     this.buttonGrade = document.createElement("button");
     this.buttonSync = document.createElement("button");
     this.buttonAuthenticator = document.createElement("button");
     liAssignments.appendChild(this.buttonAssignments);
-    liProgress.appendChild(this.spanProgress);
     liProblems.appendChild(this.buttonProblems);
     liRunTests.appendChild(this.buttonRunTests);
     liGrade.appendChild(this.buttonGrade);
     liSync.appendChild(this.buttonSync);
     liAuthenticator.appendChild(this.buttonAuthenticator);
     this.buttonAssignments.innerText = "Assignments";
-    this.spanProgress.innerText = "50%";
     this.buttonProblems.innerText = "Problems";
     this.buttonRunTests.innerText = "Run Tests";
     this.buttonGrade.innerText = "Submit for grading";
@@ -246,7 +241,13 @@ class CodeGrinderUI {
         })
       }
     })
+    this.buttonProblems.addEventListener("click", () => {
+      this.problemsList.style.display = "block";
+    })
     document.addEventListener("click", event => {
+      if (event.target !== this.buttonProblems) {
+        this.problemsList.style.display = "none";
+      }
       if (event.target !== this.buttonAssignments) {
         this.assignmentsList.style.display = "none";
       }

@@ -1,7 +1,7 @@
 import { nameFromPath } from './directoryTree.js';
-const modelist = ace.require("ace/ext/modelist");
+const modelist = window.ace.require("ace/ext/modelist");
 function createAceEditor(element) {
-  const editor = ace.edit(element);
+  const editor = window.ace.edit(element);
   editor.setTheme("ace/theme/monokai");
   // use setOptions method to set several options at once
   editor.setOptions({
@@ -108,8 +108,12 @@ class Tabs {
     this.addNewTab();
 
     // Attach a listener to the resize event of the editor's container
+    let debouncer;
     new ResizeObserver(() => {
-      this.tabs[this.currentTab]?.updateSize();
+      if (debouncer) {
+        clearTimeout(debouncer)
+      }
+      debouncer = setTimeout(() => this.tabs[this.currentTab]?.updateSize(), 500);
     }).observe(this.editorListElement);
   };
   saveTab(tab) {
