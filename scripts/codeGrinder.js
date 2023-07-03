@@ -156,6 +156,46 @@ class CodeGrinder {
     };
     return { problemsFiles, dotFile };
   }
+  mustConfirmCommitBundle(bundle) {
+    const headers = new Headers();
+    const url = `wss://${bundle.Hostname}${urlPrefix}/sockets/${bundle.ProblemType.Name}/${bundle.Commit.Action}`;
+    const socket = new WebSocket(url, headers);
+
+    socket.onopen = () => {
+      const req = {
+        CommitBundle: bundle
+      };
+      socket.send(JSON.stringify(req));
+    };
+
+    return new Promise((resolve, reject) => {
+      socket.onmessage = (event) => {
+        const reply = JSON.parse(event.data);
+
+        if (reply.Error !== "") {
+          console.log("Server returned an error:");
+          console.log(reply.Error);
+          reject(new Error(reply.Error));
+        } else if (reply.CommitBundle) {
+          resolve(reply.CommitBundle);
+        } else if (reply.Event) {
+          // Ignore the streamed data
+        } else {
+          reject(new Error("Unexpected reply from server"));
+        }
+      };
+
+      socket.onerror = (event) => {
+        console.log("Socket error:", event);
+        reject(new Error("Socket error"));
+      };
+
+      socket.onclose = (event) => {
+        console.log("Socket closed:", event);
+        reject(new Error("Socket closed"));
+      };
+    });
+  }
 }
 class CodeGrinderUI {
   constructor(navBar, codeGrinder = new CodeGrinder("codegrinder=notloggedin"),
