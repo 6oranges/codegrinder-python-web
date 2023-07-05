@@ -2,7 +2,7 @@
 // to wait for something in a worker. I don't care if it is slower than
 // native SharedArrayBuffer by 10000 times. It is the only way to fit the usecase without
 // rearchitecting the entire codebase to use some slower method rather than SharedArrayBuffer.
-if (!globalThis.SharedArrayBuffer || true) {
+if (!globalThis.SharedArrayBuffer) {
   const localSabs = {};
   globalThis.SharedArrayBuffer = class {
     constructor(bytes) {
