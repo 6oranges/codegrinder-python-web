@@ -168,6 +168,11 @@ function problemSetHandler({ problemsFiles, dotFile }) {
 }
 codeGrinderUI.runTestsHandler = () => runPython("/.run_all_tests.py");
 codeGrinderUI.problemSetHandler = problemSetHandler;
+codeGrinderUI.buttonEmbed.addEventListener("click", () => {
+    const string = `<div style="position: relative; padding-bottom: 56.25%; padding-top: 0px; height: 0; overflow: hidden;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="https://cs1030.cs.utahtech.edu/temp?assignment=${currentDotFile.assignmentID}"></iframe></div>`;
+    navigator.clipboard.writeText(string);
+    console.log(string);
+})
 const urlAssignment = urlParams.get('assignment');
 if (urlAssignment) {
     // Simplify interface if assignment is known
@@ -175,5 +180,6 @@ if (urlAssignment) {
     saveCurrent.style.display = "none";
     saveAll.style.display = "none";
     codeGrinderUI.buttonAssignments.style.display = "none";
+    codeGrinderUI.buttonEmbed.style.display = "none";
     codeGrinder.commandGet(urlAssignment).then(res => problemSetHandler(res));
 }

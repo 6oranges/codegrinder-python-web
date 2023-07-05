@@ -1,3 +1,4 @@
+import { createPrompt } from "./prompt.js";
 // Hacky trampoline to get around cors
 // TODO: ask Russ to fix
 // blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource
@@ -209,29 +210,34 @@ class CodeGrinderUI {
     const liGrade = document.createElement("li");
     const liSync = document.createElement("li");
     const liAuthenticator = document.createElement("li");
+    const liEmbed = document.createElement("li");
     navBar.appendChild(liAssignments);
     navBar.appendChild(liProblems);
     navBar.appendChild(liRunTests);
     navBar.appendChild(liGrade);
     navBar.appendChild(liSync);
     navBar.appendChild(liAuthenticator);
+    navBar.appendChild(liEmbed);
     this.buttonAssignments = document.createElement("button");
     this.buttonProblems = document.createElement("button");
     this.buttonRunTests = document.createElement("button");
     this.buttonGrade = document.createElement("button");
     this.buttonSync = document.createElement("button");
     this.buttonAuthenticator = document.createElement("button");
+    this.buttonEmbed = document.createElement("button");
     liAssignments.appendChild(this.buttonAssignments);
     liProblems.appendChild(this.buttonProblems);
     liRunTests.appendChild(this.buttonRunTests);
     liGrade.appendChild(this.buttonGrade);
     liSync.appendChild(this.buttonSync);
     liAuthenticator.appendChild(this.buttonAuthenticator);
+    liEmbed.appendChild(this.buttonEmbed);
     this.buttonAssignments.innerText = "Assignments";
     this.buttonProblems.innerText = "Problems";
     this.buttonRunTests.innerText = "Run Tests";
     this.buttonGrade.innerText = "Submit for grading";
     this.buttonSync.innerText = "Save & Sync";
+    this.buttonEmbed.innerText = "Copy Embed Code";
 
     this.authenticatorHandler = authenticatorHandler;
     this.problemSetHandler = problemSetHandler;
@@ -254,7 +260,7 @@ class CodeGrinderUI {
       if (user) {
         this.codeGrinder.cookie = undefined;
       } else {
-        const parts = window.prompt("CodeGrinder login key").trim().split(" ");
+        const parts = (await createPrompt("CodeGrinder login key")).trim().split(" ");
         this.buttonAuthenticator.disabled = true;
         await this.codeGrinder.login(parts[parts.length - 1]);
         this.buttonAuthenticator.disabled = false;

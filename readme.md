@@ -23,7 +23,9 @@ Local Files:
 * `pythonWorker.js` Runs on its own thread. Runs python code.
 * `resizeInstructions.js` and `resizeTerminal.js` manage the resize handles for the instructions and terminal respectfully.
 * `sw.js` is a service worker that caches requests to make them faster later. Also enables offline use.
-
+* `prompt.js` An asynchronous prompt api for getting input from the user. Used to login
+* `iframeSharedArrayBufferWorkaround.js` Provides a ponyfill for SharedArrayBuffer and related Atomics for use in iframes.
+* `firefoxPolyfillAtomicWaitAsync.js` Provides a polyfill for Atomic.waitAsync in firefox.
 3rd Party Files (All from cdn.jsdelivr.net):
 * `ace.js` Provides the editor
 * `pyodide.js` Uses emscripten and WebAssembly to run python in the browser.

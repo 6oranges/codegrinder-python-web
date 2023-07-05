@@ -11,7 +11,6 @@ if (!globalThis.SharedArrayBuffer) {
       xhr.open('POST', `./ponyfill/SharedArrayBuffer/${bytes}`, false); // The `false` parameter enables synchronous mode
       xhr.send("[]");
       obj.identifier = xhr.responseText;
-      console.log(obj)
       return obj;
     }
   }
