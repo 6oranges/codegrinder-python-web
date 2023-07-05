@@ -24,6 +24,9 @@ class PythonWorker {
     this.#worker.addEventListener("message", (e) => {
       if (e.data.loaded) {
         this.#interrupt = e.data.interrupt;
+        e.data.stdin.identifier = e.data.stdinid;
+        e.data.stdout.identifier = e.data.stdoutid;
+        e.data.stderr.identifier = e.data.stderrid;
         this.#stdin = new AtomicQueue(e.data.stdin);
         this.#stdout = new AtomicQueue(e.data.stdout);
         this.#stderr = new AtomicQueue(e.data.stderr);

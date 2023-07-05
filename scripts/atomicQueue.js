@@ -16,8 +16,7 @@ class AtomicQueue {
     this.maxWriteLength = this.#queue.length - 1
   }
 
-  #tryEnqueueMultiple(bytes, currentTail) {
-    const currentHead = Atomics.load(this.#head, 0);
+  #tryEnqueueMultiple(bytes, currentTail, currentHead) {
     const nextTail = (currentTail + bytes.length) % this.#queue.length;
     const currentUsed = currentHead <= currentTail ? currentTail - currentHead : this.#queue.length - currentTail + currentHead;
     const room = this.#queue.length - currentUsed - 1;
@@ -28,11 +27,10 @@ class AtomicQueue {
     for (let byte = 0; byte < bytes.length; byte++) {
       this.#queue[(currentTail + byte) % this.#queue.length] = bytes[byte];
     }
-    Atomics.notify(this.#head, 0, 1);
+    Atomics.notify(this.#tail, 0, 1);
     return true;
   }
-  #tryDequeueAll(currentHead) {
-    const currentTail = Atomics.load(this.#tail, 0);
+  #tryDequeueAll(currentHead, currentTail) {
     // Zero length
     if (currentHead === currentTail) {
       return null;
@@ -47,7 +45,7 @@ class AtomicQueue {
       }
     }
     Atomics.store(this.#head, 0, currentTail);
-    Atomics.notify(this.#tail, 0, 1);
+    Atomics.notify(this.#head, 0, 1);
     return array;
   }
   enqueueMultipleSync(bytes = new Int8Array()) {
@@ -56,8 +54,9 @@ class AtomicQueue {
     }
     while (true) {
       const currentTail = Atomics.load(this.#tail, 0);
-      if (this.#tryEnqueueMultiple(bytes, currentTail)) return;
-      Atomics.wait(this.#tail, 0, currentTail);
+      const currentHead = Atomics.load(this.#head, 0);
+      if (this.#tryEnqueueMultiple(bytes, currentTail, currentHead)) return;
+      Atomics.wait(this.#head, 0, currentHead);
     }
   }
   async enqueueMultipleAsync(bytes = new Int8Array()) {
@@ -66,24 +65,27 @@ class AtomicQueue {
     }
     while (true) {
       const currentTail = Atomics.load(this.#tail, 0);
-      if (this.#tryEnqueueMultiple(bytes, currentTail)) return;
-      await Atomics.waitAsync(this.#tail, 0, currentTail).value;
+      const currentHead = Atomics.load(this.#head, 0);
+      if (this.#tryEnqueueMultiple(bytes, currentTail, currentHead)) return;
+      await Atomics.waitAsync(this.#head, 0, currentHead).value;
     }
   }
   dequeueAllSync() {
     while (true) {
       const currentHead = Atomics.load(this.#head, 0);
-      const ret = this.#tryDequeueAll(currentHead);
+      const currentTail = Atomics.load(this.#tail, 0);
+      const ret = this.#tryDequeueAll(currentHead, currentTail);
       if (ret) return ret;
-      Atomics.wait(this.#head, 0, currentHead);
+      Atomics.wait(this.#tail, 0, currentTail);
     }
   }
   async dequeueAllAsync() {
     while (true) {
       const currentHead = Atomics.load(this.#head, 0);
-      const ret = this.#tryDequeueAll(currentHead);
+      const currentTail = Atomics.load(this.#tail, 0);
+      const ret = this.#tryDequeueAll(currentHead, currentTail);
       if (ret) return ret;
-      await Atomics.waitAsync(this.#head, 0, currentHead).value;
+      await Atomics.waitAsync(this.#tail, 0, currentTail).value;
     }
   }
   enqueueChunkedMultipleSync(bytes = new Int8Array()) {

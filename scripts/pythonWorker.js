@@ -1,4 +1,4 @@
-importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "./atomicQueue.js");
+importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "iframeSharedArrayBufferWorkaround.js", "./atomicQueue.js");
 (async () => {
   const pyodide = await loadPyodide({
     indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.2/full/"
@@ -131,10 +131,10 @@ def run_script(script_path):
   })
   postMessage({
     loaded: true,
-    stdin,
-    stdout,
-    stderr,
+    stdin, stdinid: stdin.identifier,
+    stdout, stdoutid: stdout.identifier,
+    stderr, stderrid: stderr.identifier,
     interrupt,
-    dom,
+    dom, domid: dom.identifier,
   });
 })()

@@ -53,13 +53,61 @@ async function cacheFirst(request) {
     return response;
   });
 }
-
+const sabs = [];
+const waits = [];
+async function handlePonyfill(request, resource) {
+  if (resource.startsWith("SharedArrayBuffer/")) {
+    const size = resource.split("/")[1] | 0;
+    sabs.push(new Int8Array(size));
+    waits.push({});
+    return new Response(sabs.length - 1);
+  }
+  if (resource.startsWith("Atomics.wait/")) {
+    const [_, identifier, index, value, timeout] = resource.split("/");
+    const json = await request.json();
+    for (let i = 0; i < json.curr.length; i++) {
+      if (json.curr[i] != json.prev[i]) {
+        sabs[identifier][i] = json.curr[i];
+      }
+    }
+    while (new Int32Array(sabs[identifier].buffer)[index] == value) {
+      if (!(index in waits[identifier])) {
+        waits[identifier][index] = {};
+        waits[identifier][index].promise = new Promise(accept => { waits[identifier][index].accept = accept });
+      }
+      await waits[identifier][index].promise;
+    }
+    return new Response(JSON.stringify({ value: "ok", buffer: Array.from(sabs[identifier]) }));
+  }
+  if (resource.startsWith("Atomics.notify/")) {
+    const [_, identifier, index, count] = resource.split("/");
+    const json = await request.json();
+    for (let i = 0; i < json.curr.length; i++) {
+      if (json.curr[i] != json.prev[i]) {
+        sabs[identifier][i] = json.curr[i];
+      }
+    }
+    if (index in waits[identifier]) {
+      const accept = waits[identifier][index].accept;
+      delete waits[identifier][index];
+      accept();
+    }
+    return new Response();
+  }
+}
 self.addEventListener('fetch', (event) => {
   const request = event.request;
+  const url = new URL(request.url);
+  if (url.host == location.host) {
+    const resource = url.pathname.split("ponyfill/");
+    if (resource.length === 2) {
+      event.respondWith(handlePonyfill(request, resource[1]));
+      return;
+    }
+  }
   if (request.method !== "GET") {
     return;
   }
-  const url = new URL(request.url);
   if (url.host == location.host) {
     // Local files are small and should be updated if possible
     event.respondWith(updateCache(request));

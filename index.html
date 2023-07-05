@@ -47,9 +47,11 @@
   <script crossorigin src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.14/src/ace.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.14/src/ext-modelist.js"></script>
   <script crossorigin src="https://cdn.jsdelivr.net/npm/ace-builds@1.4.14/src/ext-language_tools.js"></script>
+  <!-- In an iframe SharedArrayBuffer doesn't work. Use slow fallback -->
+  <script src="scripts/iframeSharedArrayBufferWorkaround.js" type="module"></script>
   <!-- Firefox polyfill... Even Safari supports Atomics.waitAsync... Just sad :( -->
   <!-- Remove when firefox gets support eventually. hopefully??? -->
-  <script src="scripts/firefoxPolyfillAtomicsWaitAsync.js"></script>
+  <script src="scripts/firefoxPolyfillAtomicsWaitAsync.js" type="module"></script>
   <!-- AtomicQueue cannot be a module see it's comment. Only used in pythonHandler.js and pythonWorker.js -->
   <script src="scripts/atomicQueue.js"></script>
   <!-- app.js contains all glue code between different modules -->
