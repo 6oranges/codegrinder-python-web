@@ -23,7 +23,10 @@ if (!globalThis.SharedArrayBuffer) {
     localSabs[int32arr.buffer.identifier] = curr;
     xhr.send(JSON.stringify({ prev, curr }));
   }
-  Atomics.wait = (int32arr, index, value, timeout = Infinity) => {
+  globalThis.Atomics ||= {};
+  globalThis.Atomics.load = (arr,index)=>{return arr[index]};
+  globalThis.Atomics.store = (arr,index,value)=>{arr[index]=value};
+  globalThis.Atomics.wait = (int32arr, index, value, timeout = Infinity) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `./ponyfill/Atomics.wait/${int32arr.buffer.identifier}/${index + int32arr.byteOffset / 4}/${value}/${timeout}`, false);
     send(xhr, int32arr);
@@ -35,7 +38,7 @@ if (!globalThis.SharedArrayBuffer) {
     }
     return json.value;
   }
-  Atomics.waitAsync = (int32arr, index, value, timeout = Infinity) => {
+  globalThis.Atomics.waitAsync = (int32arr, index, value, timeout = Infinity) => {
     return {
       async: true, value: new Promise(function (resolve) {
         const xhr = new XMLHttpRequest();
@@ -54,7 +57,7 @@ if (!globalThis.SharedArrayBuffer) {
       })
     }
   }
-  Atomics.notify = (int32arr, index, count = Infinity) => {
+  globalThis.Atomics.notify = (int32arr, index, count = Infinity) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `./ponyfill/Atomics.notify/${int32arr.buffer.identifier}/${index + int32arr.byteOffset / 4}/${count}`, true);
     send(xhr, int32arr);

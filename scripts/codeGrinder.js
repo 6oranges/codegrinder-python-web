@@ -159,7 +159,7 @@ class CodeGrinder {
   }
   mustConfirmCommitBundle(bundle) {
     const headers = new Headers();
-    const url = `wss://${bundle.Hostname}${urlPrefix}/sockets/${bundle.ProblemType.Name}/${bundle.Commit.Action}`;
+    const url = `wss://${this.host}/v2/sockets/${bundle.ProblemType.Name}/${bundle.Commit.Action}`;
     const socket = new WebSocket(url, headers);
 
     socket.onopen = () => {
