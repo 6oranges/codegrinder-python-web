@@ -128,11 +128,13 @@ run.addEventListener("click", () => {
 // Set up codegrinder
 let currentProblemsFiles;
 let currentDotFile;
-function switchProblem(identifier) {
+let currentProblemUnique;
+function switchProblem(unique) {
+    currentProblemUnique = unique;
     fileSystem.clear();
     tabs.closeAll();
-    for (let filename in currentProblemsFiles[identifier]) {
-        const content = currentProblemsFiles[identifier][filename];
+    for (let filename in currentProblemsFiles[unique]) {
+        const content = currentProblemsFiles[unique][filename];
         fileSystem.touch("/" + filename).content = content;
         if (!filename.includes("test") && !(["doc/doc.md", "doc/index.html", "Makefile", ".gitignore"].includes(filename))) {
             tabs.addSwitchTab("/" + filename, content);
@@ -151,7 +153,6 @@ runner.run(suite)`;
 function problemSetHandler({ problemsFiles, dotFile }) {
     currentProblemsFiles = problemsFiles;
     currentDotFile = dotFile;
-    console.log(currentDotFile);
 
     codeGrinderUI.problemsList.innerText = "";
     for (let problem in currentDotFile.problems) {
@@ -166,10 +167,28 @@ function problemSetHandler({ problemsFiles, dotFile }) {
     }
     switchProblem(Object.keys(problemsFiles)[0]);
 }
-codeGrinderUI.runTestsHandler = () => runPython("/.run_all_tests.py");
+codeGrinderUI.buttonRunTests.addEventListener("click", () => {
+    runPython("/.run_all_tests.py");
+})
+function toFiles(directory, path = "/", files = {}) {
+    for (let name in directory.children) {
+        const node = directory.children[name];
+        // If is directory
+        if (node.children) {
+            toFiles(node, path + name + "/", files);
+        } else {
+            files[path + name] = btoa(node.content);
+        }
+    }
+    return files;
+}
+codeGrinderUI.buttonSync.addEventListener("click", async () => {
+    const files = toFiles(fileSystem.rootNode, "");
+    codeGrinder.commandSync((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique);
+})
 codeGrinderUI.problemSetHandler = problemSetHandler;
 codeGrinderUI.buttonEmbed.addEventListener("click", () => {
-    const string = `<div style="position: relative; padding-bottom: 56.25%; padding-top: 0px; height: 0; overflow: hidden;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="${location.origin+location.pathname}?assignment=${currentDotFile.assignmentID}"></iframe></div>`;
+    const string = `<div style="position: relative; padding-bottom: 56.25%; padding-top: 0px; height: 0; overflow: hidden;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="${location.origin + location.pathname}?assignment=${currentDotFile.assignmentID}"></iframe></div>`;
     navigator.clipboard.writeText(string);
     console.log(string);
 })

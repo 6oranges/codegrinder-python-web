@@ -240,6 +240,17 @@ body {
     "anchor content";
 }
 
+.bar-content {
+  grid-area: content;
+  overflow: auto;
+}
+
+.bar-content>div,
+.bar-content>label {
+  padding-left: 1em;
+  display: block;
+}
+
 #instructions_container .resize-handle {
   width: 20px;
   cursor: col-resize;
@@ -249,16 +260,6 @@ body {
 #terminal_container .resize-handle {
   height: 20px;
   cursor: row-resize;
-}
-
-#instructions {
-  overflow: auto;
-  grid-area: content;
-}
-
-#output_terminal {
-  overflow: auto;
-  grid-area: content;
 }
 
 #output_terminal pre {

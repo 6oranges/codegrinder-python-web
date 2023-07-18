@@ -30,7 +30,19 @@ class CodeGrinder {
     const response = await this.#cookied(this.host + "/v2" + path);
     if (response.status !== 200) {
       const text = await response.text();
-      // console.error(text);
+      return null;
+    } else {
+      const json = await response.json();
+      return json;
+    }
+  }
+  async #postObject(path, data) {
+    const response = await this.#cookied(this.host + "/v2" + path, {
+      method: "POST",
+      body: JSON.stringify(data)
+    });
+    if (response.status !== 200) {
+      const text = await response.text();
       return null;
     } else {
       const json = await response.json();
@@ -197,12 +209,53 @@ class CodeGrinder {
       };
     });
   }
+  async gatherStudent(files, dotfile, problem_unique) {
+    const now = new Date();
+    // get the assignment
+    //const assignment = await this.getAssignment(dotfile.assignmentID);
+    const info = dotfile.problems[problem_unique];
+    const step = await this.getProblemStep(info.id, info.step);
+    //const problemType = await this.getProblemType(step.problemType);
+    // gather the commit files from the file system
+    const filtered_files = {};
+    for (const name in step.whitelist) {
+      filtered_files[name] = files[name];
+    }
+
+    // form a commit object
+    const commit = {
+      id: 0,
+      assignmentID: dotfile.assignmentID,
+      problemID: info.id,
+      step: info.step,
+      files: filtered_files,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+
+    return commit;
+  }
+  async commandSync(user, files, dotfile, problem_unique) {
+    const commit = await this.gatherStudent(files, dotfile, problem_unique);
+    commit.action = "";
+    commit.note = "grind sync";
+    const unsigned = {
+      userID: user.id,
+      commit: commit,
+    }
+
+    // send the commit to the server
+    const signed = await this.#postObject("/commit_bundles/unsigned", unsigned);
+    // TODO: fix the server
+    // this returns too much information: it returns the solution files
+    // under problemSteps[0].solution with base64 encoding as usual
+    // This was tested on a Testing Student canvas account. This be bad!
+  }
 }
 class CodeGrinderUI {
   constructor(navBar, codeGrinder = new CodeGrinder("codegrinder=notloggedin"),
     authenticatorHandler = (cookie) => { },
-    problemSetHandler = ({ problemsFiles, dotFile }) => { },
-    runTestsHandler = () => { }) {
+    problemSetHandler = ({ problemsFiles, dotFile }) => { }) {
     this.codeGrinder = codeGrinder;
     const liAssignments = document.createElement("li");
     const liProblems = document.createElement("li");
@@ -241,7 +294,6 @@ class CodeGrinderUI {
 
     this.authenticatorHandler = authenticatorHandler;
     this.problemSetHandler = problemSetHandler;
-    this.runTestsHandler = runTestsHandler;
     this.me = this.codeGrinder.getMe();
 
     this.assignmentsList = document.createElement("ol");
@@ -252,9 +304,6 @@ class CodeGrinderUI {
     this.problemsList.classList.add("dropdown");
     liProblems.appendChild(this.problemsList);
 
-    this.buttonRunTests.addEventListener("click", () => {
-      this.runTestsHandler();
-    })
     this.buttonAuthenticator.addEventListener("click", async () => {
       let user = await this.me;
       if (user) {
