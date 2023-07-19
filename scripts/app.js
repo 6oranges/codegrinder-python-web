@@ -88,13 +88,27 @@ pythonRunner.ready.then(() => {
     writeTerminal(">> ", "orange");
 });
 input_terminal.addEventListener("keydown", event => {
-    if (event.code === "Enter" && pythonRunning) {
+    input_terminal.style.color = pythonRunning ? "grey" : "blue";
+    if (event.code === "Enter") {
         let value = input_terminal.value + "\n";
-        writeTerminal(value, "grey");
-        pythonRunner.writeStdin(value);
         input_terminal.value = "";
         input_terminal.focus();
         event.preventDefault();
+        if (pythonRunning) {
+            writeTerminal(value, "grey");
+            pythonRunner.writeStdin(value);
+        } else {
+            writeTerminal(value, "blue");
+            run.innerText = "Stop"
+            pythonRunning = true;
+            pythonRunner.runPython(fileSystem, value).then(async () => {
+                await pythonRunner.ready;
+                writeTerminal(">> ", "orange");
+                pythonRunning = false;
+                run.innerText = "Run";
+                run.disabled = false;
+            });
+        }
     }
 })
 pythonRunner.setStdoutCallback(str => {
@@ -113,7 +127,7 @@ async function runPython(path) {
         run.innerText = "Stop"
         pythonRunning = true;
         writeTerminal("Running " + path + "\n", "orange");
-        await pythonRunner.runPython(fileSystem, path);
+        await pythonRunner.runPython(fileSystem, `run_script(".${path}")`);
         await pythonRunner.ready;
         writeTerminal(">> ", "orange");
         pythonRunning = false;

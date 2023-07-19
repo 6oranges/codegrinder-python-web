@@ -119,7 +119,7 @@ def run_script(script_path):
     }
     if (data.run) {
       try {
-        pyodide.runPython(`run_script(".${data.run}")`);
+        pyodide.runPython(data.run);
       }
       catch (error) {
         const encoder = new TextEncoder();

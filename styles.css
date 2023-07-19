@@ -249,6 +249,7 @@ body {
 .bar-content>label {
   padding-left: 1em;
   display: block;
+  overflow: auto;
 }
 
 #instructions_container .resize-handle {

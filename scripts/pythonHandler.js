@@ -48,14 +48,14 @@ class PythonWorker {
   destroy() {
     this.#destroy();
   }
-  async runPython(fileSystem, path) {
+  async runPython(fileSystem, code) {
     await this.ready;
     if (this.runningPython) {
       throw new Error("Already running python on this worker");
     }
     this.runningPython = true;
-    const execution = new Promise((resolve) => { this.#pythonFinished = resolve })
-    this.#worker.postMessage({ fileSystem, run: path });
+    const execution = new Promise((resolve) => { this.#pythonFinished = resolve }).then(() => new Promise((delayAccept) => setTimeout(() => delayAccept(), 100)));
+    this.#worker.postMessage({ fileSystem, run: code });
     await Promise.race([execution, this.destroyed]);
     this.runningPython = false;
   }
@@ -96,11 +96,11 @@ class PythonRunner {
     this.#worker = new PythonWorker(this.#stdoutCallback, this.#stderrCallback);
     this.ready = this.#worker.ready;
   }
-  async runPython(fileSystem, path) {
+  async runPython(fileSystem, code) {
     if (this.#worker.runningPython) {
       this.stopPython();
     }
-    await this.#worker.runPython(fileSystem, path);
+    await this.#worker.runPython(fileSystem, code);
   }
   setStdoutCallback(callback) {
     this.#stdoutCallback = callback;
