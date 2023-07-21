@@ -12,9 +12,10 @@ function trampoline(url, options) {
   })
 }
 class CodeGrinder {
-  constructor(cookie, host = "https://codegrinder.cs.utahtech.edu") {
+  constructor(cookie, host = "codegrinder.cs.utahtech.edu") {
     this.host = host;
-    this.cookie = cookie
+    this.cookie = cookie;
+    this.urlPrefix = "/v2";
   }
   #cookied(url, options) {
     if (!options) {
@@ -27,7 +28,7 @@ class CodeGrinder {
     return trampoline(url, options);
   }
   async #getObject(path) {
-    const response = await this.#cookied(this.host + "/v2" + path);
+    const response = await this.#cookied("https://" + this.host + this.urlPrefix + path);
     if (response.status !== 200) {
       const text = await response.text();
       return null;
@@ -37,7 +38,7 @@ class CodeGrinder {
     }
   }
   async #postObject(path, data) {
-    const response = await this.#cookied(this.host + "/v2" + path, {
+    const response = await this.#cookied("https://" + this.host + this.urlPrefix + path, {
       method: "POST",
       body: JSON.stringify(data)
     });
@@ -169,14 +170,13 @@ class CodeGrinder {
     };
     return { problemsFiles, dotFile };
   }
-  mustConfirmCommitBundle(bundle) {
-    const headers = new Headers();
-    const url = `wss://${this.host}/v2/sockets/${bundle.ProblemType.Name}/${bundle.Commit.Action}`;
-    const socket = new WebSocket(url, headers);
+  mustConfirmCommitBundle(bundle, stdoutCallback, stderrCallback) {
+    const url = `wss://${bundle.hostname}${this.urlPrefix}/sockets/${bundle.problemType.name}/${bundle.commit.action}`;
+    const socket = new WebSocket(url);
 
     socket.onopen = () => {
       const req = {
-        CommitBundle: bundle
+        commitBundle: bundle
       };
       socket.send(JSON.stringify(req));
     };
@@ -184,15 +184,22 @@ class CodeGrinder {
     return new Promise((resolve, reject) => {
       socket.onmessage = (event) => {
         const reply = JSON.parse(event.data);
-
-        if (reply.Error !== "") {
+        if (reply.error) {
           console.log("Server returned an error:");
-          console.log(reply.Error);
-          reject(new Error(reply.Error));
-        } else if (reply.CommitBundle) {
-          resolve(reply.CommitBundle);
-        } else if (reply.Event) {
-          // Ignore the streamed data
+          console.log(reply.error);
+          reject(new Error(reply.error));
+        } else if (reply.commitBundle) {
+          resolve(reply.commitBundle);
+        } else if (reply.event) {
+          if (reply.event.event == "stdout") {
+            stdoutCallback(atob(reply.event.streamData));
+          } else if (reply.event.event == "stderr") {
+            stderrCallback(atob(reply.event.streamData));
+          } else if (reply.event.event == "exit") {
+            console.log("Exit Code: ", reply.event.event.exitStatus);
+          } else {
+            console.log(reply.event);
+          }
         } else {
           reject(new Error("Unexpected reply from server"));
         }
@@ -201,11 +208,6 @@ class CodeGrinder {
       socket.onerror = (event) => {
         console.log("Socket error:", event);
         reject(new Error("Socket error"));
-      };
-
-      socket.onclose = (event) => {
-        console.log("Socket closed:", event);
-        reject(new Error("Socket closed"));
       };
     });
   }
@@ -250,6 +252,26 @@ class CodeGrinder {
     // this returns too much information: it returns the solution files
     // under problemSteps[0].solution with base64 encoding as usual
     // This was tested on a Testing Student canvas account. This be bad!
+  }
+  async commandGrade(user, files, dotfile, problem_unique, stdoutCallback, stderrCallback) {
+    const commit = await this.gatherStudent(files, dotfile, problem_unique);
+    commit.action = "grade";
+    commit.note = "grind grade";
+    const unsigned = {
+      userID: user.id,
+      commit: commit,
+    }
+    const signed = await this.#postObject("/commit_bundles/unsigned", unsigned);
+    const graded = await this.mustConfirmCommitBundle(signed, stdoutCallback, stderrCallback);
+    const toSave = {
+      hostname: graded.hostname,
+      userID: graded.userID,
+      commit: graded.commit,
+      commitSignature: graded.commitSignature
+    }
+    const saved = await this.#postObject("/commit_bundles/signed", toSave);
+    const savedCommit = saved.commit;
+    stdoutCallback(savedCommit.reportCard.note);
   }
 }
 class CodeGrinderUI {

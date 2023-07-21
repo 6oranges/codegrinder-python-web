@@ -200,6 +200,14 @@ codeGrinderUI.buttonSync.addEventListener("click", async () => {
     const files = toFiles(fileSystem.rootNode, "");
     codeGrinder.commandSync((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique);
 })
+codeGrinderUI.buttonGrade.addEventListener("click", async () => {
+    const files = toFiles(fileSystem.rootNode, "");
+    codeGrinder.commandGrade((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique, stdoutStr => {
+        writeTerminal(stdoutStr, "green");
+    }, stderrStr => {
+        writeTerminal(stderrStr, "darkgreen");
+    });
+})
 codeGrinderUI.problemSetHandler = problemSetHandler;
 codeGrinderUI.buttonEmbed.addEventListener("click", () => {
     const string = `<div style="position: relative; padding-bottom: 56.25%; padding-top: 0px; height: 0; overflow: hidden;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="${location.origin + location.pathname}?assignment=${currentDotFile.assignmentID}"></iframe></div>`;
