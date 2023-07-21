@@ -35,6 +35,9 @@ class Tab {
     this.#ace.getSession().on("change", (delta) => {
       if (delta.action === "insert" || delta.action === "remove") {
         this.saved = false;
+        if (this.autoSave) {
+          this.saveHandler(this.path, this.content);
+        }
       }
     });
     this.#ace.commands.addCommand({
@@ -44,10 +47,11 @@ class Tab {
         this.saveHandler(this.path, this.content);
       }
     });
+    this.saveHandler = null;
+    this.autoSave = false;
     // Set magic properties
     this.path = path;
     this.saved = true;
-    this.saveHandler = null;
   }
   updateSize() {
     this.#ace.resize();
@@ -115,6 +119,7 @@ class Tabs {
       }
       debouncer = setTimeout(() => this.tabs[this.currentTab]?.updateSize(), 500);
     }).observe(this.editorListElement);
+    this.autoSave = false;
   };
   saveTab(tab) {
     if (tab.saved) {
@@ -174,6 +179,7 @@ class Tabs {
     return true;
   }
   addNewTab(tab = new Tab()) {
+    tab.autoSave = this.autoSave;
     tab.saveHandler = (path, content) => {
       this.saveTab(tab);
     };

@@ -101,7 +101,7 @@ class CodeGrinder {
     return this.#getObject("/assignments/" + assignmentId + "/problems/" + problemId + "/commits/last");
   }
   async nextStep(info, problem, commit, types) {
-    //console.log(`step ${commit.Step} passed`);
+    //console.log(`step ${commit.step} passed`);
 
     // advance to the next step
     const newStep = await this.getProblemStep(problem.id, commit.step + 1);
@@ -111,7 +111,7 @@ class CodeGrinder {
     }
     const oldStep = await this.getProblemStep(problem.id, commit.step);
 
-    console.log(`moving to step ${newStep.Step}`);
+    console.log(`moving to step ${newStep.step}`);
 
     // gather all the files for the new step
     const files = {};
@@ -238,6 +238,7 @@ class CodeGrinder {
       }
     }
     const problemsFiles = {};
+    const completed = new Set();
     for (let unique in steps) {
       const commit = commits[unique];
       const problem = problems[unique];
@@ -262,13 +263,19 @@ class CodeGrinder {
         files[name] = atob(types[step.problemType].files[name]);
       }
       if (commit?.reportCard?.passed && commit.score === 1.0) {
-        problemsFiles[unique] = await this.nextStep(infos[unique], problem, commit, types);
+        const nextStepFiles = await this.nextStep(infos[unique], problem, commit, types);
+        if (nextStepFiles) {
+          problemsFiles[unique] = nextStepFiles;
+        } else {
+          completed.add(unique);
+        }
       }
     }
 
     const dotFile = {
       assignmentID: assignment.id,
       problems: infos,
+      completed,
     };
     return { problemsFiles, dotFile };
   }
@@ -344,9 +351,9 @@ class CodeGrinderUI {
     liEmbed.appendChild(this.buttonEmbed);
     this.buttonAssignments.innerText = "Assignments";
     this.buttonProblems.innerText = "Problems";
-    this.buttonRunTests.innerText = "Run Tests";
-    this.buttonGrade.innerText = "Submit for grading";
-    this.buttonSync.innerText = "Save & Sync";
+    this.buttonRunTests.innerText = "Test";
+    this.buttonGrade.innerText = "Grade";
+    this.buttonSync.innerText = "Sync";
     this.buttonEmbed.innerText = "Copy Embed Code";
 
     this.authenticatorHandler = authenticatorHandler;

@@ -16,9 +16,11 @@ const navBar = document.getElementById("nav_bar");
 const md = window.markdownit();
 const fileSystem = new FileSystem();
 const fileSystemUI = new FileSystemUI(fileSystem, document.getElementById("directory_tree"));
+let mostRecentChange = new Date();
 const tabs = new Tabs(document.getElementById("tabs"), (path, content) => {
     const fout = fileSystem.touch(path);
     fout.content = content;
+    mostRecentChange = new Date();
     fileSystemUI.refreshUI();
 });
 
@@ -73,9 +75,9 @@ function writeTerminal(str, color) {
             input_terminal.focus();
         }
     }
-    if (str.includes("\n")) {
-        output_terminal_label.scrollTop = output_terminal_label.scrollHeight;
-    }
+    setTimeout(() => {
+        output_terminal_label.parentElement.scrollTop = output_terminal_label.parentElement.scrollHeight;
+    }, 100);
     previousSpan.innerText += str;
 }
 
@@ -172,9 +174,13 @@ function problemSetHandler({ problemsFiles, dotFile }, unique) {
     for (let problem in currentDotFile.problems) {
         const li = document.createElement("li");
         const button = document.createElement("button");
-        button.innerText = problem;
         li.appendChild(button);
         codeGrinderUI.problemsList.appendChild(li);
+        if (currentDotFile.completed.has(problem)) {
+            button.innerText = "✓ " + problem;
+        } else {
+            button.innerText = problem;
+        }
         button.addEventListener("click", async () => {
             switchProblem(problem);
         })
@@ -207,7 +213,7 @@ codeGrinderUI.buttonGrade.addEventListener("click", async () => {
     }, stderrStr => {
         writeTerminal(stderrStr, "darkgreen");
     });
-    await codeGrinder.commandGet(urlAssignment).then(res => problemSetHandler(res));
+    await codeGrinder.commandGet(currentDotFile.assignmentID).then(res => problemSetHandler(res, currentProblemUnique));
 })
 codeGrinderUI.problemSetHandler = problemSetHandler;
 codeGrinderUI.buttonEmbed.addEventListener("click", () => {
@@ -223,5 +229,22 @@ if (urlAssignment) {
     saveAll.style.display = "none";
     codeGrinderUI.buttonAssignments.style.display = "none";
     codeGrinderUI.buttonEmbed.style.display = "none";
+    codeGrinderUI.buttonSync.style.display = "none";
+    tabs.autoSave = true;
     codeGrinder.commandGet(urlAssignment).then(res => problemSetHandler(res));
+    let lastSyncedChange = mostRecentChange;
+    setInterval(async () => {
+        const currentFiles = toFiles(fileSystem.rootNode, "");
+        for (let filename in currentProblemsFiles[currentProblemUnique]) {
+            const content = currentProblemsFiles[currentProblemUnique][filename];
+            if (atob(currentFiles[filename]) !== content) {
+                if (mostRecentChange > lastSyncedChange) {
+                    lastSyncedChange = mostRecentChange;
+                    console.log("Auto Sync")
+                    await codeGrinder.commandSync((await codeGrinderUI.me), currentFiles, currentDotFile, currentProblemUnique);
+                    break;
+                }
+            }
+        }
+    }, 5000);
 }
