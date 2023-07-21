@@ -173,7 +173,7 @@ runner.run(suite)`;
 function problemSetHandler({ problemsFiles, dotFile }, unique) {
     currentProblemsFiles = problemsFiles;
     currentDotFile = dotFile;
-
+    let firstUnfinished = null;
     codeGrinderUI.problemsList.innerText = "";
     for (let problem in currentDotFile.problems) {
         const li = document.createElement("li");
@@ -184,12 +184,15 @@ function problemSetHandler({ problemsFiles, dotFile }, unique) {
             button.innerText = "✓ " + problem;
         } else {
             button.innerText = problem;
+            if (!firstUnfinished) {
+                firstUnfinished = problem;
+            }
         }
         button.addEventListener("click", async () => {
             switchProblem(problem);
         })
     }
-    switchProblem(unique || Object.keys(problemsFiles)[0]);
+    switchProblem(unique || firstUnfinished || Object.keys(problemsFiles)[0]);
 }
 codeGrinderUI.buttonRunTests.addEventListener("click", () => {
     runPython("/.run_all_tests.py");
