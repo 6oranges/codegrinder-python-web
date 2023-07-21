@@ -165,6 +165,10 @@ runner = unittest.TextTestRunner()
 runner.run(suite)`;
     mdElement.innerHTML = fileSystem.touch("/doc/index.html").content;
     fileSystemUI.refreshUI();
+    const finished = currentDotFile.completed.has(unique);
+    codeGrinderUI.buttonGrade.innerText = finished ? "Finished" : "Grade";
+    codeGrinderUI.buttonGrade.disabled = finished;
+
 }
 function problemSetHandler({ problemsFiles, dotFile }, unique) {
     currentProblemsFiles = problemsFiles;
