@@ -100,6 +100,109 @@ class CodeGrinder {
   getLastCommit(assignmentId, problemId) {
     return this.#getObject("/assignments/" + assignmentId + "/problems/" + problemId + "/commits/last");
   }
+  async nextStep(info, problem, commit, types) {
+    //console.log(`step ${commit.Step} passed`);
+
+    // advance to the next step
+    const newStep = await this.getProblemStep(problem.id, commit.step + 1);
+    if (!newStep) {
+      console.log("you have completed all steps for this problem");
+      return null;
+    }
+    const oldStep = await this.getProblemStep(problem.id, commit.step);
+
+    console.log(`moving to step ${newStep.Step}`);
+
+    // gather all the files for the new step
+    const files = {};
+    if (commit) {
+      for (const [name, contents] of Object.entries(commit.files)) {
+        files[name] = atob(contents);
+      }
+    }
+
+    // commit files may be overwritten by new step files
+    for (const [name, contents] of Object.entries(newStep.files)) {
+      files[name] = atob(contents);
+    }
+    files["doc/index.html"] = newStep.instructions;
+    for (const [name, contents] of Object.entries(types[newStep.problemType].files)) {
+      if (files[name] !== undefined) {
+        console.log(`warning: problem type file is overwriting problem file: ${name}`);
+      }
+      files[name] = atob(contents);
+    }
+    info.step++;
+    return files;
+  }
+  async gatherStudent(files, dotfile, problem_unique) {
+    const now = new Date();
+    // get the assignment
+    //const assignment = await this.getAssignment(dotfile.assignmentID);
+    const info = dotfile.problems[problem_unique];
+    const step = await this.getProblemStep(info.id, info.step);
+    //const problemType = await this.getProblemType(step.problemType);
+    // gather the commit files from the file system
+    const filtered_files = {};
+    for (const name in step.whitelist) {
+      filtered_files[name] = files[name];
+    }
+
+    // form a commit object
+    const commit = {
+      id: 0,
+      assignmentID: dotfile.assignmentID,
+      problemID: info.id,
+      step: info.step,
+      files: filtered_files,
+      createdAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
+
+    return commit;
+  }
+  mustConfirmCommitBundle(bundle, stdoutCallback, stderrCallback) {
+    const url = `wss://${bundle.hostname}${this.urlPrefix}/sockets/${bundle.problemType.name}/${bundle.commit.action}`;
+    const socket = new WebSocket(url);
+
+    socket.onopen = () => {
+      const req = {
+        commitBundle: bundle
+      };
+      socket.send(JSON.stringify(req));
+    };
+
+    return new Promise((resolve, reject) => {
+      socket.onmessage = (event) => {
+        const reply = JSON.parse(event.data);
+        if (reply.error) {
+          console.log("Server returned an error:");
+          console.log(reply.error);
+          reject(new Error(reply.error));
+        } else if (reply.commitBundle) {
+          resolve(reply.commitBundle);
+        } else if (reply.event) {
+          if (reply.event.event == "stdout") {
+            stdoutCallback(atob(reply.event.streamData));
+          } else if (reply.event.event == "stderr") {
+            stderrCallback(atob(reply.event.streamData));
+          } else if (reply.event.event == "exit") {
+            // console.log("Exit Code: ", reply.event.event.exitStatus);
+          } else {
+            // exec events
+            // console.log(reply.event);
+          }
+        } else {
+          reject(new Error("Unexpected reply from server"));
+        }
+      };
+
+      socket.onerror = (event) => {
+        console.log("Socket error:", event);
+        reject(new Error("Socket error"));
+      };
+    });
+  }
   // See https://github.com/russross/codegrinder/blob/70d9a02cc8e3cf2868f19bb26e5b0b17304ccbc1/cli/get.go#L48C54-L48C54
   async commandGet(assignmentId) {
     const assignment = await this.getAssignment(assignmentId);
@@ -158,9 +261,8 @@ class CodeGrinder {
         }
         files[name] = atob(types[step.problemType].files[name]);
       }
-      // TODO: Not implemented
-      if (commit !== null && commit.reportCard !== null && commit.reportCard.Passed && commit.score === 1.0) {
-        nextStep(target, infos[unique], problem, commit, types);
+      if (commit?.reportCard?.passed && commit.score === 1.0) {
+        problemsFiles[unique] = await this.nextStep(infos[unique], problem, commit, types);
       }
     }
 
@@ -169,73 +271,6 @@ class CodeGrinder {
       problems: infos,
     };
     return { problemsFiles, dotFile };
-  }
-  mustConfirmCommitBundle(bundle, stdoutCallback, stderrCallback) {
-    const url = `wss://${bundle.hostname}${this.urlPrefix}/sockets/${bundle.problemType.name}/${bundle.commit.action}`;
-    const socket = new WebSocket(url);
-
-    socket.onopen = () => {
-      const req = {
-        commitBundle: bundle
-      };
-      socket.send(JSON.stringify(req));
-    };
-
-    return new Promise((resolve, reject) => {
-      socket.onmessage = (event) => {
-        const reply = JSON.parse(event.data);
-        if (reply.error) {
-          console.log("Server returned an error:");
-          console.log(reply.error);
-          reject(new Error(reply.error));
-        } else if (reply.commitBundle) {
-          resolve(reply.commitBundle);
-        } else if (reply.event) {
-          if (reply.event.event == "stdout") {
-            stdoutCallback(atob(reply.event.streamData));
-          } else if (reply.event.event == "stderr") {
-            stderrCallback(atob(reply.event.streamData));
-          } else if (reply.event.event == "exit") {
-            console.log("Exit Code: ", reply.event.event.exitStatus);
-          } else {
-            console.log(reply.event);
-          }
-        } else {
-          reject(new Error("Unexpected reply from server"));
-        }
-      };
-
-      socket.onerror = (event) => {
-        console.log("Socket error:", event);
-        reject(new Error("Socket error"));
-      };
-    });
-  }
-  async gatherStudent(files, dotfile, problem_unique) {
-    const now = new Date();
-    // get the assignment
-    //const assignment = await this.getAssignment(dotfile.assignmentID);
-    const info = dotfile.problems[problem_unique];
-    const step = await this.getProblemStep(info.id, info.step);
-    //const problemType = await this.getProblemType(step.problemType);
-    // gather the commit files from the file system
-    const filtered_files = {};
-    for (const name in step.whitelist) {
-      filtered_files[name] = files[name];
-    }
-
-    // form a commit object
-    const commit = {
-      id: 0,
-      assignmentID: dotfile.assignmentID,
-      problemID: info.id,
-      step: info.step,
-      files: filtered_files,
-      createdAt: now.toISOString(),
-      updatedAt: now.toISOString(),
-    };
-
-    return commit;
   }
   async commandSync(user, files, dotfile, problem_unique) {
     const commit = await this.gatherStudent(files, dotfile, problem_unique);

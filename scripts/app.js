@@ -164,7 +164,7 @@ runner.run(suite)`;
     mdElement.innerHTML = fileSystem.touch("/doc/index.html").content;
     fileSystemUI.refreshUI();
 }
-function problemSetHandler({ problemsFiles, dotFile }) {
+function problemSetHandler({ problemsFiles, dotFile }, unique) {
     currentProblemsFiles = problemsFiles;
     currentDotFile = dotFile;
 
@@ -179,7 +179,7 @@ function problemSetHandler({ problemsFiles, dotFile }) {
             switchProblem(problem);
         })
     }
-    switchProblem(Object.keys(problemsFiles)[0]);
+    switchProblem(unique || Object.keys(problemsFiles)[0]);
 }
 codeGrinderUI.buttonRunTests.addEventListener("click", () => {
     runPython("/.run_all_tests.py");
@@ -202,11 +202,12 @@ codeGrinderUI.buttonSync.addEventListener("click", async () => {
 })
 codeGrinderUI.buttonGrade.addEventListener("click", async () => {
     const files = toFiles(fileSystem.rootNode, "");
-    codeGrinder.commandGrade((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique, stdoutStr => {
+    await codeGrinder.commandGrade((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique, stdoutStr => {
         writeTerminal(stdoutStr, "green");
     }, stderrStr => {
         writeTerminal(stderrStr, "darkgreen");
     });
+    await codeGrinder.commandGet(urlAssignment).then(res => problemSetHandler(res));
 })
 codeGrinderUI.problemSetHandler = problemSetHandler;
 codeGrinderUI.buttonEmbed.addEventListener("click", () => {

@@ -252,6 +252,14 @@ body {
   overflow: auto;
 }
 
+#instructions {
+  user-select: none;
+}
+
+#instructions code {
+  user-select: text;
+}
+
 #instructions_container .resize-handle {
   width: 20px;
   cursor: col-resize;
