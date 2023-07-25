@@ -101,17 +101,11 @@ class CodeGrinder {
     return this.#getObject("/assignments/" + assignmentId + "/problems/" + problemId + "/commits/last");
   }
   async nextStep(info, problem, commit, types) {
-    //console.log(`step ${commit.step} passed`);
-
     // advance to the next step
     const newStep = await this.getProblemStep(problem.id, commit.step + 1);
     if (!newStep) {
-      console.log("you have completed all steps for this problem");
       return null;
     }
-    const oldStep = await this.getProblemStep(problem.id, commit.step);
-
-    console.log(`moving to step ${newStep.step}`);
 
     // gather all the files for the new step
     const files = {};
@@ -295,6 +289,32 @@ class CodeGrinder {
     // under problemSteps[0].solution with base64 encoding as usual
     // This was tested on a Testing Student canvas account. This be bad!
   }
+  async commandReset(dotfile, problem_unique) {
+    // gather all the files that make up this step
+    const files = {};
+    const currentStep = dotfile.problems[problem_unique].step;
+    const assignmentID = dotfile.assignmentID;
+    const problemID = dotfile.problems[problem_unique].id;
+    const step = await this.getProblemStep(problemID, currentStep);
+    // get the commit from the previous step if applicable
+    if (currentStep > 1) {
+      const commit = await this.#getObject(`/assignments/${assignmentID}/problems/${problemID}/steps/${currentStep - 1}/commits/last`);
+      for (const name in commit.files) {
+        files[name] = atob(commit.files[name]);
+      }
+    }
+
+    // commit files may be overwritten by new step files
+    for (const name in step.files) {
+      files[name] = atob(step.files[name]);
+    }
+    files["doc/index.html"] = step.instructions;
+    const problemType = await this.getProblemType(step.problemType);
+    for (const name in problemType.files) {
+      files[name] = atob(problemType.files[name]);
+    }
+    return files;
+  }
   async commandGrade(user, files, dotfile, problem_unique, stdoutCallback, stderrCallback) {
     const commit = await this.gatherStudent(files, dotfile, problem_unique);
     commit.action = "grade";
@@ -326,6 +346,7 @@ class CodeGrinderUI {
     const liRunTests = document.createElement("li");
     const liGrade = document.createElement("li");
     const liSync = document.createElement("li");
+    const liReset = document.createElement("li");
     const liAuthenticator = document.createElement("li");
     const liEmbed = document.createElement("li");
     navBar.appendChild(liAssignments);
@@ -333,6 +354,7 @@ class CodeGrinderUI {
     navBar.appendChild(liRunTests);
     navBar.appendChild(liGrade);
     navBar.appendChild(liSync);
+    navBar.appendChild(liReset);
     navBar.appendChild(liAuthenticator);
     navBar.appendChild(liEmbed);
     this.buttonAssignments = document.createElement("button");
@@ -340,6 +362,7 @@ class CodeGrinderUI {
     this.buttonRunTests = document.createElement("button");
     this.buttonGrade = document.createElement("button");
     this.buttonSync = document.createElement("button");
+    this.buttonReset = document.createElement("button");
     this.buttonAuthenticator = document.createElement("button");
     this.buttonEmbed = document.createElement("button");
     liAssignments.appendChild(this.buttonAssignments);
@@ -347,6 +370,7 @@ class CodeGrinderUI {
     liRunTests.appendChild(this.buttonRunTests);
     liGrade.appendChild(this.buttonGrade);
     liSync.appendChild(this.buttonSync);
+    liReset.appendChild(this.buttonReset);
     liAuthenticator.appendChild(this.buttonAuthenticator);
     liEmbed.appendChild(this.buttonEmbed);
     this.buttonAssignments.innerText = "Assignments";
@@ -354,6 +378,7 @@ class CodeGrinderUI {
     this.buttonRunTests.innerText = "Test";
     this.buttonGrade.innerText = "Grade";
     this.buttonSync.innerText = "Sync";
+    this.buttonReset.innerText = "Reset";
     this.buttonEmbed.innerText = "Copy Embed Code";
 
     this.authenticatorHandler = authenticatorHandler;

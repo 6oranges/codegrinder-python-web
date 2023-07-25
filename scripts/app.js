@@ -211,7 +211,11 @@ function toFiles(directory, path = "/", files = {}) {
 }
 codeGrinderUI.buttonSync.addEventListener("click", async () => {
     const files = toFiles(fileSystem.rootNode, "");
-    codeGrinder.commandSync((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique);
+    await codeGrinder.commandSync((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique);
+})
+codeGrinderUI.buttonReset.addEventListener("click", async () => {
+    currentProblemsFiles[currentProblemUnique] = await codeGrinder.commandReset(currentDotFile, currentProblemUnique);
+    switchProblem(currentProblemUnique);
 })
 codeGrinderUI.buttonGrade.addEventListener("click", async () => {
     const files = toFiles(fileSystem.rootNode, "");
