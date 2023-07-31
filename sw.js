@@ -109,6 +109,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.host == location.host) {
+    if (url.pathname.includes("skulpt/")){
+      // large skulpt library files.
+      // Obtained by cloning the skulpt repository
+      // Running `npm install` and `npm run dist` and copying the dist folder contents
+      // Only used for turtle
+      event.respondWith(cacheFirst(request));
+      return;
+    }
     // Local files are small and should be updated if possible
     event.respondWith(updateCache(request));
   } else if (url.host == "cdn.jsdelivr.net") {

@@ -46,7 +46,6 @@ def run_script(script_path):
   const stdin = new SharedArrayBuffer(4000);
   const stdout = new SharedArrayBuffer(4000);
   const stderr = new SharedArrayBuffer(4000);
-  const dom = new SharedArrayBuffer(4000);
   const stdinQueue = new AtomicQueue(stdin);
   const stdoutQueue = new AtomicQueue(stdout);
   const stderrQueue = new AtomicQueue(stderr);
@@ -65,26 +64,6 @@ def run_script(script_path):
       stderrQueue.enqueueMultipleSync([byte]);
     }
   })
-  // Dom is WIP
-  const domQueue = new AtomicQueue(dom);
-  const handler = {
-    get: function (target, property) {
-      console.log(`Accessed property: ${property}`);
-      return {};
-    },
-    set: function (target, property, value) {
-      console.log(`Set property: ${property} = ${value}`);
-    },
-    apply: function (target, thisArg, argumentsList) {
-      throw new Error("cannot call document");
-    },
-    construct: function (target, argumentsList, newTarget) {
-      throw new Error("cannot construct document");
-    }
-  };
-  const proxy = new Proxy({}, handler);
-  globalThis.document = proxy;
-
   // Load a directory into the pyodide virtual filesystem (emscripten)
   // We are using our abstraction defined in directoryTree.js
   function writeDirectory(directory, path) {
@@ -135,6 +114,5 @@ def run_script(script_path):
     stdout, stdoutid: stdout.identifier,
     stderr, stderrid: stderr.identifier,
     interrupt,
-    dom, domid: dom.identifier,
   });
 })()
