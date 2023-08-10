@@ -169,6 +169,7 @@ class CodeGrinder {
     return new Promise((resolve, reject) => {
       socket.onmessage = (event) => {
         const reply = JSON.parse(event.data);
+        console.log(reply);
         if (reply.error) {
           console.log("Server returned an error:");
           console.log(reply.error);
@@ -348,7 +349,7 @@ class CodeGrinderUI {
     const liSync = document.createElement("li");
     const liReset = document.createElement("li");
     const liAuthenticator = document.createElement("li");
-    const liEmbed = document.createElement("li");
+    const liAction = document.createElement("li");
     navBar.appendChild(liAssignments);
     navBar.appendChild(liProblems);
     navBar.appendChild(liRunTests);
@@ -356,7 +357,7 @@ class CodeGrinderUI {
     navBar.appendChild(liSync);
     navBar.appendChild(liReset);
     navBar.appendChild(liAuthenticator);
-    navBar.appendChild(liEmbed);
+    navBar.appendChild(liAction);
     this.buttonAssignments = document.createElement("button");
     this.buttonProblems = document.createElement("button");
     this.buttonRunTests = document.createElement("button");
@@ -364,7 +365,7 @@ class CodeGrinderUI {
     this.buttonSync = document.createElement("button");
     this.buttonReset = document.createElement("button");
     this.buttonAuthenticator = document.createElement("button");
-    this.buttonEmbed = document.createElement("button");
+    this.buttonAction = document.createElement("button");
     liAssignments.appendChild(this.buttonAssignments);
     liProblems.appendChild(this.buttonProblems);
     liRunTests.appendChild(this.buttonRunTests);
@@ -372,14 +373,14 @@ class CodeGrinderUI {
     liSync.appendChild(this.buttonSync);
     liReset.appendChild(this.buttonReset);
     liAuthenticator.appendChild(this.buttonAuthenticator);
-    liEmbed.appendChild(this.buttonEmbed);
+    liAction.appendChild(this.buttonAction);
     this.buttonAssignments.innerText = "Assignments";
     this.buttonProblems.innerText = "Problems";
     this.buttonRunTests.innerText = "Test";
     this.buttonGrade.innerText = "Grade";
     this.buttonSync.innerText = "Sync";
     this.buttonReset.innerText = "Reset";
-    this.buttonEmbed.innerText = "Copy Embed Code";
+    this.buttonAction.innerText = "Action";
 
     this.authenticatorHandler = authenticatorHandler;
     this.problemSetHandler = problemSetHandler;

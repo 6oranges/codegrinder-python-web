@@ -83,6 +83,8 @@ function writeTerminal(str, color) {
 
 // Set up python
 let pythonRunning = false;
+let serverRunning = false;
+let serverStdin;
 run.disabled = true;
 pythonRunner.ready.then(() => {
     run.disabled = false;
@@ -96,6 +98,9 @@ input_terminal.addEventListener("keydown", event => {
         input_terminal.value = "";
         input_terminal.focus();
         event.preventDefault();
+        if (serverRunning) {
+            serverStdin(value)
+        }
         if (pythonRunning) {
             writeTerminal(value, "grey");
             pythonRunner.writeStdin(value);
@@ -119,7 +124,30 @@ pythonRunner.setStdoutCallback(str => {
 pythonRunner.setStderrCallback(str => {
     writeTerminal(str, "red");
 });
+function builtinRead(x) {
+    if (Sk.builtinFiles === undefined || Sk.builtinFiles["files"][x] === undefined)
+        throw "File not found: '" + x + "'";
+    return Sk.builtinFiles["files"][x];
+}
+async function runSkulpt(code) {
+    Sk.configure({ output: (text) => { writeTerminal(text, "black") }, read: builtinRead });
+    (Sk.TurtleGraphics || (Sk.TurtleGraphics = {})).target = 'turtle';
+    var myPromise = Sk.misceval.asyncToPromise(function () {
+        return Sk.importMainWithBody("<stdin>", false, code, true);
+    });
+    myPromise.then(function (mod) {
+    },
+        function (err) {
+            writeTerminal(err.toString(), "black");
+        });
+    await myPromise;
+}
 async function runPython(path) {
+    const contents = fileSystem.touch(path).content;
+    if (contents.includes("import turtle")) {
+        await runSkulpt(contents);
+        return;
+    }
     if (pythonRunning) {
         run.disabled = true;
         pythonRunning = false;
@@ -226,12 +254,18 @@ codeGrinderUI.buttonGrade.addEventListener("click", async () => {
     });
     await codeGrinder.commandGet(currentDotFile.assignmentID).then(res => problemSetHandler(res, currentProblemUnique));
 })
+codeGrinder.actionHandler = async (action) => {
+    const files = toFiles(fileSystem.rootNode, "");
+    await codeGrinder.commandAction((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique,
+        () => {
+            writeTerminal(stdoutStr, "purple");
+        }, stdoutStr => {
+            writeTerminal(stdoutStr, "purple");
+        }, stderrStr => {
+            writeTerminal(stderrStr, "darkpurple");
+        });
+}
 codeGrinderUI.problemSetHandler = problemSetHandler;
-codeGrinderUI.buttonEmbed.addEventListener("click", () => {
-    const string = `<div style="position: relative; padding-bottom: 56.25%; padding-top: 0px; height: 0; overflow: hidden;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="${location.origin + location.pathname}?assignment=${currentDotFile.assignmentID}"></iframe></div>`;
-    navigator.clipboard.writeText(string);
-    console.log(string);
-})
 const urlAssignment = urlParams.get('assignment');
 if (urlAssignment) {
     // Simplify interface if assignment is known

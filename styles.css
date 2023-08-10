@@ -213,7 +213,7 @@ body {
 #terminal_container {
   grid-area: terminal;
   height: 200px;
-  max-height: 50vh;
+  max-height: 100vh;
   display: grid;
   grid-template-rows: auto 1fr;
   grid-template-areas:
@@ -243,6 +243,12 @@ body {
 .bar-content {
   grid-area: content;
   overflow: auto;
+  position: relative;
+}
+
+#turtle {
+  position: absolute;
+  width: 100%;
 }
 
 .bar-content>div,
