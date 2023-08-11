@@ -108,6 +108,11 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
   if (url.host == location.host) {
+    if (!url.pathname.startsWith(location.pathname.split("/sw.js")[0])) {
+      // API requests must not be cached. This line is needed for iframes
+      event.respondWith(fetch(request));
+      return;
+    }
     const resource = url.pathname.split("ponyfill/");
     if (resource.length === 2) {
       event.respondWith(handlePonyfill(request, resource[1]));
@@ -118,23 +123,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.host == location.host) {
-    if (url.pathname.startsWith(location.pathname.split("/sw.js")[0])) {
-      if (url.pathname.includes("skulpt/")) {
-        // large skulpt library files.
-        // Obtained by cloning the skulpt repository
-        // Running `npm install` and `npm run dist` and copying the dist folder contents
-        // Only used for turtle
-        event.respondWith(cacheFirst(request));
-        return;
-      }
-      // Local files are small and should be updated if possible
-      event.respondWith(updateCache(request));
-    } else {
-      // This line is needed, otherwise iframe breaks
-      event.respondWith(fetch(request));
+    if (url.pathname.includes("skulpt/")) {
+      // large skulpt library files.
+      // Obtained by cloning the skulpt repository
+      // Running `npm install` and `npm run dist` and copying the dist folder contents
+      // Only used for turtle
+      event.respondWith(cacheFirst(request));
+      return;
     }
+    // Local files are small and should be updated if possible
+    event.respondWith(updateCache(request));
+    return;
   } else if (url.host == "cdn.jsdelivr.net") {
     // large files from CDNs
     event.respondWith(cacheFirst(request));
+    return;
   }
 });
