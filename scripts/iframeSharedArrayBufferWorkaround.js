@@ -24,8 +24,8 @@ if (!globalThis.SharedArrayBuffer) {
     xhr.send(JSON.stringify({ prev, curr }));
   }
   globalThis.Atomics ||= {};
-  globalThis.Atomics.load = (arr,index)=>{return arr[index]};
-  globalThis.Atomics.store = (arr,index,value)=>{arr[index]=value};
+  globalThis.Atomics.load = (arr, index) => { return arr[index] };
+  globalThis.Atomics.store = (arr, index, value) => { arr[index] = value };
   globalThis.Atomics.wait = (int32arr, index, value, timeout = Infinity) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `./ponyfill/Atomics.wait/${int32arr.buffer.identifier}/${index + int32arr.byteOffset / 4}/${value}/${timeout}`, false);
@@ -53,6 +53,11 @@ if (!globalThis.SharedArrayBuffer) {
           }
           resolve(json.value);
         };
+        xhr.onerror = async function () {
+          // The service worker reset due to inactivity
+          // Call handling of sharedArrayBuffer loss
+          window.iframeSharedArrayBufferWorkaroundServiceWorkerLoss();
+        }
         send(xhr, int32arr);
       })
     }

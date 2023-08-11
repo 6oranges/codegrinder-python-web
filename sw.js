@@ -8,12 +8,21 @@ async function updateCache(request) {
 
   // Try fetching from the network
   const network = fetch(request).then((response) => {
+    const newHeaders = new Headers(response.headers);
+    newHeaders.set("Cross-Origin-Embedder-Policy", "require-corp");
+    newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+
+    const sharedArrayBufferResponse = new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: newHeaders,
+    });
     // Clone the response as it can only be consumed once
-    const responseClone = response.clone();
+    const responseClone = sharedArrayBufferResponse.clone();
 
     // Respond and add the network response to the cache
     cache.put(request, responseClone);
-    return response;
+    return sharedArrayBufferResponse;
   }).catch(err => { });
 
   const response = await cache.match(request);
@@ -109,16 +118,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
   if (url.host == location.host) {
-    if (url.pathname.includes("skulpt/")){
-      // large skulpt library files.
-      // Obtained by cloning the skulpt repository
-      // Running `npm install` and `npm run dist` and copying the dist folder contents
-      // Only used for turtle
-      event.respondWith(cacheFirst(request));
-      return;
+    if (url.pathname.startsWith(location.pathname.split("/sw.js")[0])) {
+      if (url.pathname.includes("skulpt/")) {
+        // large skulpt library files.
+        // Obtained by cloning the skulpt repository
+        // Running `npm install` and `npm run dist` and copying the dist folder contents
+        // Only used for turtle
+        event.respondWith(cacheFirst(request));
+        return;
+      }
+      // Local files are small and should be updated if possible
+      event.respondWith(updateCache(request));
+    } else {
+      // This line is needed, otherwise iframe breaks
+      event.respondWith(fetch(request));
     }
-    // Local files are small and should be updated if possible
-    event.respondWith(updateCache(request));
   } else if (url.host == "cdn.jsdelivr.net") {
     // large files from CDNs
     event.respondWith(cacheFirst(request));

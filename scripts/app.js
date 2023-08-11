@@ -84,6 +84,9 @@ function writeTerminal(str, color) {
 // Set up python
 let pythonRunning = false;
 let serverRunning = false;
+window.iframeSharedArrayBufferWorkaroundServiceWorkerLoss = function () {
+    pythonRunner.stopPython();
+}
 let serverStdin;
 run.disabled = true;
 pythonRunner.ready.then(() => {
@@ -143,8 +146,15 @@ async function runSkulpt(code) {
     await myPromise;
 }
 async function runPython(path) {
-    const contents = fileSystem.touch(path).content;
-    if (contents.includes("import turtle")) {
+    let needsTurtle = false;
+    try {
+        needsTurtle = fileSystem.touch(path).content.includes("import turtle");
+    } catch {
+        // If the above failed it is most likely because the path is invalid
+        // In which case pyodide has a better error message
+        // Pass invalid path on intentionally
+    }
+    if (needsTurtle) {
         await runSkulpt(contents);
         return;
     }
@@ -232,7 +242,14 @@ function toFiles(directory, path = "/", files = {}) {
         if (node.children) {
             toFiles(node, path + name + "/", files);
         } else {
-            files[path + name] = btoa(node.content);
+            // TODO
+            // Need to support binary and utf8
+            // Uint8Array.from(atob(btoa(String.fromCharCode(...new Uint8Array([0,5,128,255,200])))),c=>c.charCodeAt(0))
+            try {
+                files[path + name] = btoa(node.content);
+            } catch {
+                console.error("couldn't btoa", node.content)
+            }
         }
     }
     return files;
@@ -266,6 +283,13 @@ codeGrinder.actionHandler = async (action) => {
         });
 }
 codeGrinderUI.problemSetHandler = problemSetHandler;
+const urlSession = urlParams.get("session");
+let codeGrinderReadyPromise = new Promise((resolve) => resolve());
+if (urlSession) {
+    codeGrinderReadyPromise = codeGrinder.login(urlSession);
+    codeGrinderReadyPromise.then(() => { codeGrinderUI.me = codeGrinder.getMe(); codeGrinderUI.updateAuthenticationStatus() });
+    codeGrinderUI.buttonAuthenticator.style.display = "none";
+}
 const urlAssignment = urlParams.get('assignment');
 if (urlAssignment) {
     // Simplify interface if assignment is known
@@ -273,10 +297,9 @@ if (urlAssignment) {
     saveCurrent.style.display = "none";
     saveAll.style.display = "none";
     codeGrinderUI.buttonAssignments.style.display = "none";
-    codeGrinderUI.buttonEmbed.style.display = "none";
     codeGrinderUI.buttonSync.style.display = "none";
     tabs.autoSave = true;
-    codeGrinder.commandGet(urlAssignment).then(res => problemSetHandler(res));
+    codeGrinderReadyPromise.then(() => codeGrinder.commandGet(urlAssignment)).then(res => problemSetHandler(res));
     let lastSyncedChange = mostRecentChange;
     setInterval(async () => {
         const currentFiles = toFiles(fileSystem.rootNode, "");

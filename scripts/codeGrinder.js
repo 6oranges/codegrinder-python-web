@@ -1,7 +1,5 @@
 import { createPrompt } from "./prompt.js";
-// Hacky trampoline to get around cors
-// TODO: ask Russ to fix
-// blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource
+// Hacky trampoline to get around cors in testing environment
 function trampoline(url, options) {
   return fetch("/trampoline", {
     method: "POST",
@@ -25,7 +23,11 @@ class CodeGrinder {
       options.headers = {};
     }
     options.headers.Cookie = this.cookie;
-    return trampoline(url, options);
+    if (location.hostname === this.host) {
+      return fetch(url, options);
+    } else {
+      return trampoline(url, options);
+    }
   }
   async #getObject(path) {
     const response = await this.#cookied("https://" + this.host + this.urlPrefix + path);
@@ -406,7 +408,7 @@ class CodeGrinderUI {
       }
       this.authenticatorHandler(this.codeGrinder.cookie);
       this.me = this.codeGrinder.getMe();
-      await this.#updateAuthenticationStatus();
+      await this.updateAuthenticationStatus();
     })
     this.buttonAssignments.addEventListener("click", async () => {
       const user = await this.me;
@@ -437,9 +439,9 @@ class CodeGrinderUI {
         this.assignmentsList.style.display = "none";
       }
     })
-    this.#updateAuthenticationStatus();
+    this.updateAuthenticationStatus();
   }
-  async #updateAuthenticationStatus() {
+  async updateAuthenticationStatus() {
     const user = await this.me;
     if (!user) {
       this.buttonAuthenticator.innerText = "Login";

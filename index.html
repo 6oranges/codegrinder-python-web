@@ -8,7 +8,16 @@
   <title>Python Editor</title>
   <script>
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
+      navigator.serviceWorker.register('sw.js')
+        .then(function (registration) {
+          if (!navigator.serviceWorker.controller) {
+            // Reload the page to ensure the service worker is active
+            // It needs to be active for python to run in an iframe
+            // It also needs to be running for codegrinder requests
+            // to go through in an iframe
+            window.location.reload();
+          }
+        })
     }
   </script>
 </head>
