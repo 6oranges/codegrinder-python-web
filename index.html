@@ -2,10 +2,11 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8">
+  <meta charset="utf-8">
   <meta name="viewport" content="width=device-width">
   <link rel="stylesheet" href="styles.css">
   <title>Python Editor</title>
+  <meta name="description" content="A python editor for Codegrinder. Utilizes pyodide and webworkers.">
   <script>
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('sw.js')
@@ -78,8 +79,8 @@
   <!-- Skulpt (being a js based interpreter for python) has worse error messages than native python (pyodide is just native python compiled for web) -->
   <!-- As it uses the main thread it can hang the page with infinite loops -->
   <!-- Looks like it might support python debugging though -->
-  <script src="skulpt/skulpt.min.js" type="text/javascript"></script>
-  <script src="skulpt/skulpt-stdlib.js" type="text/javascript"></script>
+  <script defer src="skulpt/skulpt.min.js" type="text/javascript"></script>
+  <script defer src="skulpt/skulpt-stdlib.js" type="text/javascript"></script>
 </body>
 
 </html>

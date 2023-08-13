@@ -1,36 +1,64 @@
-const scope = location.pathname.split("/").slice(0, -1).join("/") + "/";
-self.addEventListener("install", (event) => {
-  self.skipWaiting();
-});
-async function updateCache(request) {
-  // Try opening the cache
-  const cache = await caches.open('pythonWebApp');
+"use strict"
+const version = '0.1.3';
+const appCache = location.pathname.split("/").slice(1, -1).join("/") + "#"; // Unique across origin (Current Path)
+const versionedCache = appCache + version; // Unique across versions
+const localFilesToCache = [
+  '.', // index.html
+  './styles.css',
+  './scripts/app.js',
+  './scripts/atomicQueue.js',
+  './scripts/codeGrinder.js',
+  './scripts/directoryTree.js',
+  './scripts/editorTabs.js',
+  './scripts/firefoxPolyfillAtomicsWaitAsync.js',
+  './scripts/iframeSharedArrayBufferWorkaround.js',
+  './scripts/prompt.js',
+  './scripts/pythonHandler.js',
+  './scripts/pythonWorker.js',
+  './scripts/resizeInstructions.js',
+  './scripts/resizeTerminal.js',
+];
+async function addAllFast(list, name) {
+  const cache = await caches.open(name);
+  const responses = [];
+  for (let file of list) {
+    responses.push(fetch(file, { headers: { 'Cache-Control': 'no-cache' } })
+      .then((response) => {
+        const newHeaders = new Headers(response.headers);
+        newHeaders.set("Cross-Origin-Embedder-Policy", "require-corp");
+        newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
 
-  // Try fetching from the network
-  const network = fetch(request).then((response) => {
-    const newHeaders = new Headers(response.headers);
-    newHeaders.set("Cross-Origin-Embedder-Policy", "require-corp");
-    newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
-
-    const sharedArrayBufferResponse = new Response(response.body, {
-      status: response.status,
-      statusText: response.statusText,
-      headers: newHeaders,
-    });
-    // Clone the response as it can only be consumed once
-    const responseClone = sharedArrayBufferResponse.clone();
-
-    // Respond and add the network response to the cache
-    cache.put(request, responseClone);
-    return sharedArrayBufferResponse;
-  }).catch(err => { });
-
-  const response = await cache.match(request);
-  if (response) {
-    return response;
+        const sharedArrayBufferResponse = new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers: newHeaders,
+        });
+        return cache.put(file, sharedArrayBufferResponse);
+      }))
   }
-  return await network;
+  return await Promise.all(responses);
 }
+
+// Start the service worker and cache all of the app's content
+self.addEventListener('install', function (e) {
+  e.waitUntil(addAllFast(localFilesToCache, versionedCache).then(() => self.skipWaiting()));
+});
+
+self.addEventListener('activate', function (event) {
+  console.log("Running new service worker " + versionedCache);
+  return event.waitUntil(
+    caches.keys().then(async function (cacheNames) {
+      await Promise.all(
+        cacheNames.filter(function (cacheName) {
+          return (cacheName.startsWith(appCache) && !(cacheName.startsWith(versionedCache)));
+        }).map(function (cacheName) {
+          return caches.delete(cacheName);
+        })
+      );
+      return self.clients.claim();
+    })
+  );
+});
 async function cacheFirst(request) {
   if (request.mode !== "cors") {
     // Modify the request's headers to include CORS headers
@@ -47,7 +75,7 @@ async function cacheFirst(request) {
     });
   }
   // Try opening the cache
-  const cache = await caches.open('pythonWebApp');
+  const cache = await caches.open(versionedCache);
   const response = await cache.match(request);
   if (response) {
     return response;
@@ -110,7 +138,7 @@ self.addEventListener('fetch', (event) => {
   if (url.host == location.host) {
     if (!url.pathname.startsWith(location.pathname.split("/sw.js")[0])) {
       // API requests must not be cached. This line is needed for iframes
-      event.respondWith(fetch(request));
+      event.respondWith(fetch(request, { headers: { 'Cache-Control': 'no-cache' } }));
       return;
     }
     const resource = url.pathname.split("ponyfill/");
@@ -131,8 +159,8 @@ self.addEventListener('fetch', (event) => {
       event.respondWith(cacheFirst(request));
       return;
     }
-    // Local files are small and should be updated if possible
-    event.respondWith(updateCache(request));
+    // Local files
+    event.respondWith(cacheFirst(request));
     return;
   } else if (url.host == "cdn.jsdelivr.net") {
     // large files from CDNs
