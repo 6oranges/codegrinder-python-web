@@ -25,9 +25,6 @@ const tabs = new Tabs(document.getElementById("tabs"), (path, content) => {
 });
 
 const pythonRunner = new PythonRunner();
-const codegrinderCookie = "codegrinderCookie";
-const codeGrinder = new CodeGrinder(window.localStorage.getItem(codegrinderCookie));
-const codeGrinderUI = new CodeGrinderUI(navBar, codeGrinder, cookie => window.localStorage.setItem(codegrinderCookie, cookie));
 const urlParams = new URLSearchParams(window.location.search);
 
 // Set up files dropdown
@@ -152,16 +149,16 @@ pythonRunner.setToMainThreadCallback(data => {
     document.getElementById("turtle").appendChild(img);
 });
 async function runPython(path) {
-    let needsTurtle = false;
+    let content = "";
     try {
-        needsTurtle = fileSystem.touch(path).content.includes("import turtle");
+        content = fileSystem.touch(path).content;
     } catch {
         // If the above failed it is most likely because the path is invalid
         // In which case pyodide has a better error message
         // Pass invalid path on intentionally
     }
-    if (needsTurtle) {
-        await runSkulpt(contents);
+    if (content.includes("import turtle")) {
+        await runSkulpt(content);
         return;
     }
     if (pythonRunning) {
@@ -185,140 +182,166 @@ run.addEventListener("click", () => {
     runPython(tabs.tabs[tabs.currentTab].path);
 })
 
-// Set up codegrinder
-let currentProblemsFiles;
-let currentDotFile;
-let currentProblemUnique;
-function switchProblem(unique) {
-    currentProblemUnique = unique;
-    fileSystem.clear();
-    tabs.closeAll();
-    for (let filename in currentProblemsFiles[unique]) {
-        const content = currentProblemsFiles[unique][filename];
-        fileSystem.touch("/" + filename).content = content;
-        if (!filename.includes("test") && !(["doc/doc.md", "doc/index.html", "Makefile", ".gitignore"].includes(filename))) {
-            tabs.addSwitchTab("/" + filename, content);
+function setupCodegrinder() {
+    const codegrinderCookie = "codegrinderCookie";
+    const codeGrinder = new CodeGrinder(window.localStorage.getItem(codegrinderCookie));
+    const codeGrinderUI = new CodeGrinderUI(navBar, codeGrinder, cookie => window.localStorage.setItem(codegrinderCookie, cookie));
+
+    let currentProblemsFiles;
+    let currentDotFile;
+    let currentProblemUnique;
+    function switchProblem(unique) {
+        currentProblemUnique = unique;
+        fileSystem.clear();
+        tabs.closeAll();
+        for (let filename in currentProblemsFiles[unique]) {
+            const content = currentProblemsFiles[unique][filename];
+            fileSystem.touch("/" + filename).content = content;
+            if (!filename.includes("test") && !(["doc/doc.md", "doc/index.html", "Makefile", ".gitignore"].includes(filename))) {
+                tabs.addSwitchTab("/" + filename, content);
+            }
         }
-    }
-    fileSystem.touch("/.run_all_tests.py").content = `
+        fileSystem.touch("/.run_all_tests.py").content = `
 import unittest
 loader = unittest.TestLoader()
 start_dir = './tests'
 suite = loader.discover(start_dir)
 runner = unittest.TextTestRunner()
 runner.run(suite)`;
-    mdElement.innerHTML = fileSystem.touch("/doc/index.html").content;
-    fileSystemUI.refreshUI();
-    const finished = currentDotFile.completed.has(unique);
-    codeGrinderUI.buttonGrade.innerText = finished ? "Finished" : "Grade";
-    codeGrinderUI.buttonGrade.disabled = finished;
+        mdElement.innerHTML = fileSystem.touch("/doc/index.html").content;
+        fileSystemUI.refreshUI();
+        const finished = currentDotFile.completed.has(unique);
+        codeGrinderUI.buttonGrade.innerText = finished ? "Finished" : "Grade";
+        codeGrinderUI.buttonGrade.disabled = finished;
 
-}
-function problemSetHandler({ problemsFiles, dotFile }, unique) {
-    currentProblemsFiles = problemsFiles;
-    currentDotFile = dotFile;
-    let firstUnfinished = null;
-    codeGrinderUI.problemsList.innerText = "";
-    for (let problem in currentDotFile.problems) {
-        const li = document.createElement("li");
-        const button = document.createElement("button");
-        li.appendChild(button);
-        codeGrinderUI.problemsList.appendChild(li);
-        if (currentDotFile.completed.has(problem)) {
-            button.innerText = "✓ " + problem;
-        } else {
-            button.innerText = problem;
-            if (!firstUnfinished) {
-                firstUnfinished = problem;
-            }
-        }
-        button.addEventListener("click", async () => {
-            switchProblem(problem);
-        })
     }
-    switchProblem(unique || firstUnfinished || Object.keys(problemsFiles)[0]);
-}
-codeGrinderUI.buttonRunTests.addEventListener("click", () => {
-    runPython("/.run_all_tests.py");
-})
-function toFiles(directory, path = "/", files = {}) {
-    for (let name in directory.children) {
-        const node = directory.children[name];
-        // If is directory
-        if (node.children) {
-            toFiles(node, path + name + "/", files);
-        } else {
-            // TODO
-            // Need to support binary and utf8
-            // Uint8Array.from(atob(btoa(String.fromCharCode(...new Uint8Array([0,5,128,255,200])))),c=>c.charCodeAt(0))
-            try {
-                files[path + name] = btoa(node.content);
-            } catch {
-                console.error("couldn't btoa", node.content)
+    function problemSetHandler({ problemsFiles, dotFile }, unique) {
+        currentProblemsFiles = problemsFiles;
+        currentDotFile = dotFile;
+        let firstUnfinished = null;
+        codeGrinderUI.problemsList.innerText = "";
+        for (let problem in currentDotFile.problems) {
+            const li = document.createElement("li");
+            const button = document.createElement("button");
+            li.appendChild(button);
+            codeGrinderUI.problemsList.appendChild(li);
+            if (currentDotFile.completed.has(problem)) {
+                button.innerText = "✓ " + problem;
+            } else {
+                button.innerText = problem;
+                if (!firstUnfinished) {
+                    firstUnfinished = problem;
+                }
             }
+            button.addEventListener("click", async () => {
+                switchProblem(problem);
+            })
         }
+        switchProblem(unique || firstUnfinished || Object.keys(problemsFiles)[0]);
     }
-    return files;
-}
-codeGrinderUI.buttonSync.addEventListener("click", async () => {
-    const files = toFiles(fileSystem.rootNode, "");
-    await codeGrinder.commandSync((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique);
-})
-codeGrinderUI.buttonReset.addEventListener("click", async () => {
-    currentProblemsFiles[currentProblemUnique] = await codeGrinder.commandReset(currentDotFile, currentProblemUnique);
-    switchProblem(currentProblemUnique);
-})
-codeGrinderUI.buttonGrade.addEventListener("click", async () => {
-    const files = toFiles(fileSystem.rootNode, "");
-    await codeGrinder.commandGrade((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique, stdoutStr => {
-        writeTerminal(stdoutStr, "green");
-    }, stderrStr => {
-        writeTerminal(stderrStr, "darkgreen");
-    });
-    await codeGrinder.commandGet(currentDotFile.assignmentID).then(res => problemSetHandler(res, currentProblemUnique));
-})
-codeGrinder.actionHandler = async (action) => {
-    const files = toFiles(fileSystem.rootNode, "");
-    await codeGrinder.commandAction((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique,
-        () => {
-            writeTerminal(stdoutStr, "purple");
-        }, stdoutStr => {
-            writeTerminal(stdoutStr, "purple");
-        }, stderrStr => {
-            writeTerminal(stderrStr, "darkpurple");
-        });
-}
-codeGrinderUI.problemSetHandler = problemSetHandler;
-const urlSession = urlParams.get("session");
-let codeGrinderReadyPromise = new Promise((resolve) => resolve());
-if (urlSession) {
-    codeGrinderReadyPromise = codeGrinder.login(urlSession);
-    codeGrinderReadyPromise.then(() => { codeGrinderUI.me = codeGrinder.getMe(); codeGrinderUI.updateAuthenticationStatus() });
-    codeGrinderUI.buttonAuthenticator.style.display = "none";
-}
-const urlAssignment = urlParams.get('assignment');
-if (urlAssignment) {
-    // Simplify interface if assignment is known
-    newTab.style.display = "none";
-    saveCurrent.style.display = "none";
-    saveAll.style.display = "none";
-    codeGrinderUI.buttonAssignments.style.display = "none";
-    codeGrinderUI.buttonSync.style.display = "none";
-    tabs.autoSave = true;
-    codeGrinderReadyPromise.then(() => codeGrinder.commandGet(urlAssignment)).then(res => problemSetHandler(res));
-    let lastSyncedChange = mostRecentChange;
-    setInterval(async () => {
-        const currentFiles = toFiles(fileSystem.rootNode, "");
-        for (let filename in currentProblemsFiles[currentProblemUnique]) {
-            const content = currentProblemsFiles[currentProblemUnique][filename];
-            if (atob(currentFiles[filename]) !== content) {
-                if (mostRecentChange > lastSyncedChange) {
-                    lastSyncedChange = mostRecentChange;
-                    console.log("Auto Sync")
-                    await codeGrinder.commandSync((await codeGrinderUI.me), currentFiles, currentDotFile, currentProblemUnique);
-                    break;
+    codeGrinderUI.buttonRunTests.addEventListener("click", () => {
+        runPython("/.run_all_tests.py");
+    })
+    function toFiles(directory, path = "/", files = {}) {
+        for (let name in directory.children) {
+            const node = directory.children[name];
+            // If is directory
+            if (node.children) {
+                toFiles(node, path + name + "/", files);
+            } else {
+                // TODO
+                // Need to support binary and utf8
+                // Uint8Array.from(atob(btoa(String.fromCharCode(...new Uint8Array([0,5,128,255,200])))),c=>c.charCodeAt(0))
+                try {
+                    files[path + name] = btoa(node.content);
+                } catch {
+                    console.error("couldn't btoa", node.content)
                 }
             }
         }
-    }, 5000);
+        return files;
+    }
+    codeGrinderUI.buttonSync.addEventListener("click", async () => {
+        const files = toFiles(fileSystem.rootNode, "");
+        await codeGrinder.commandSync((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique);
+    })
+    codeGrinderUI.buttonReset.addEventListener("click", async () => {
+        currentProblemsFiles[currentProblemUnique] = await codeGrinder.commandReset(currentDotFile, currentProblemUnique);
+        switchProblem(currentProblemUnique);
+    })
+    codeGrinderUI.buttonGrade.addEventListener("click", async () => {
+        const files = toFiles(fileSystem.rootNode, "");
+        await codeGrinder.commandGrade((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique, stdoutStr => {
+            writeTerminal(stdoutStr, "green");
+        }, stderrStr => {
+            writeTerminal(stderrStr, "darkgreen");
+        });
+        await codeGrinder.commandGet(currentDotFile.assignmentID).then(res => problemSetHandler(res, currentProblemUnique));
+    })
+    codeGrinder.actionHandler = async (action) => {
+        const files = toFiles(fileSystem.rootNode, "");
+        await codeGrinder.commandAction((await codeGrinderUI.me), files, currentDotFile, currentProblemUnique,
+            () => {
+                writeTerminal(stdoutStr, "purple");
+            }, stdoutStr => {
+                writeTerminal(stdoutStr, "purple");
+            }, stderrStr => {
+                writeTerminal(stderrStr, "darkpurple");
+            });
+    }
+    codeGrinderUI.problemSetHandler = problemSetHandler;
+    const urlSession = urlParams.get("session");
+    let codeGrinderReadyPromise = new Promise((resolve) => resolve());
+    if (urlSession) {
+        codeGrinderReadyPromise = codeGrinder.login(urlSession);
+        codeGrinderReadyPromise.then(() => { codeGrinderUI.me = codeGrinder.getMe(); codeGrinderUI.updateAuthenticationStatus() });
+        codeGrinderUI.buttonAuthenticator.style.display = "none";
+    }
+    const urlAssignment = urlParams.get('assignment');
+    if (urlAssignment) {
+        // Simplify interface if assignment is known
+        newTab.style.display = "none";
+        saveCurrent.style.display = "none";
+        saveAll.style.display = "none";
+        codeGrinderUI.buttonAssignments.style.display = "none";
+        codeGrinderUI.buttonSync.style.display = "none";
+        tabs.autoSave = true;
+        codeGrinderReadyPromise.then(() => codeGrinder.commandGet(urlAssignment)).then(res => problemSetHandler(res));
+        let lastSyncedChange = mostRecentChange;
+        setInterval(async () => {
+            const currentFiles = toFiles(fileSystem.rootNode, "");
+            for (let filename in currentProblemsFiles[currentProblemUnique]) {
+                const content = currentProblemsFiles[currentProblemUnique][filename];
+                if (atob(currentFiles[filename]) !== content) {
+                    if (mostRecentChange > lastSyncedChange) {
+                        lastSyncedChange = mostRecentChange;
+                        console.log("Auto Sync")
+                        await codeGrinder.commandSync((await codeGrinderUI.me), currentFiles, currentDotFile, currentProblemUnique);
+                        break;
+                    }
+                }
+            }
+        }, 5000);
+    }
+}
+const urlDummy = urlParams.get("dummy");
+if (urlDummy) {
+    newTab.style.display = "none";
+    saveCurrent.style.display = "none";
+    saveAll.style.display = "none";
+    filesButton.style.display = "none";
+    document.getElementById("instructions_container").style.display = "none";
+    document.getElementsByClassName("tabs-container")[0].style.display = "none";
+    document.getElementsByClassName("path-input")[0].style.display = "none";
+    run.style.position = "absolute";
+    run.style.right = 0;
+    run.style.top = 0;
+    run.style.zIndex = 1;
+    run.style.borderRadius = "100%";
+    run.style.backgroundColor = "green";
+    run.style.margin = "20px";
+    tabs.autoSave = true;
+    tabs.addSwitchTab("/main.py", "")
+} else {
+    setupCodegrinder();
 }
