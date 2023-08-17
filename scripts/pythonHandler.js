@@ -3,13 +3,15 @@ class PythonWorker {
   #pythonFinished;
   #destroy;
   #worker;
-  #stdin;
-  #stdout;
-  #stderr;
+  #stdin = new AtomicQueue;
+  #stdout = new AtomicQueue;
+  #stderr = new AtomicQueue;
+  #toMainThread = new AtomicJSONQueue;
   #interrupt;
-  constructor(stdoutCallback = (str) => { }, stderrCallback = (str) => { }) {
+  constructor(stdoutCallback = (str) => { }, stderrCallback = (str) => { }, toMainThreadCallback = (data) => { }) {
     this.stdoutCallback = stdoutCallback;
     this.stderrCallback = stderrCallback;
+    this.toMainThreadCallback = toMainThreadCallback;
     this.#worker = new Worker(new URL('./pythonWorker.js', import.meta.url));
     this.runningPython = false;
     this.destroyed = new Promise((accept) => {
@@ -27,22 +29,34 @@ class PythonWorker {
         e.data.stdin.identifier = e.data.stdinid;
         e.data.stdout.identifier = e.data.stdoutid;
         e.data.stderr.identifier = e.data.stderrid;
+        e.data.toMainThread.identifier = e.data.toMainThreadid;
         this.#stdin = new AtomicQueue(e.data.stdin);
         this.#stdout = new AtomicQueue(e.data.stdout);
         this.#stderr = new AtomicQueue(e.data.stderr);
+        this.#toMainThread = new AtomicJSONQueue(e.data.toMainThread);
         this.#loaded();
       }
       if (e.data.finishedPython) {
         this.#pythonFinished();
       }
     })
-    this.ready.then(() => {
+    this.ready.then(async () => {
       this.#registerStream(this.#stdout, (str) => {
         this.stdoutCallback(str);
       })
       this.#registerStream(this.#stderr, (str) => {
         this.stderrCallback(str);
       })
+      while (true) {
+        const data = await Promise.race([this.#toMainThread.dequeueMessageAsync(), this.destroyed]);
+        if (!data) {
+          return;
+        }
+        this.toMainThreadCallback(data);
+
+        // don't block page
+        await new Promise((accept) => requestAnimationFrame(() => accept()));
+      }
     })
   }
   destroy() {
@@ -85,15 +99,17 @@ class PythonRunner {
   #worker;
   #stdoutCallback;
   #stderrCallback;
-  constructor(stdoutCallback = (str) => { }, stderrCallback = (str) => { }) {
+  #toMainThreadCallback;
+  constructor(stdoutCallback = (str) => { }, stderrCallback = (str) => { }, toMainThreadCallback = (data) => { }) {
     this.#stdoutCallback = stdoutCallback;
     this.#stderrCallback = stderrCallback;
-    this.#worker = new PythonWorker(this.#stdoutCallback, this.#stderrCallback);
+    this.#toMainThreadCallback = toMainThreadCallback;
+    this.#worker = new PythonWorker(this.#stdoutCallback, this.#stderrCallback, this.#toMainThreadCallback);
     this.ready = this.#worker.ready;
   }
   stopPython() {
     this.#worker.destroy();
-    this.#worker = new PythonWorker(this.#stdoutCallback, this.#stderrCallback);
+    this.#worker = new PythonWorker(this.#stdoutCallback, this.#stderrCallback, this.#toMainThreadCallback);
     this.ready = this.#worker.ready;
   }
   async runPython(fileSystem, code) {
@@ -109,6 +125,10 @@ class PythonRunner {
   setStderrCallback(callback) {
     this.#stderrCallback = callback;
     this.#worker.stderrCallback = callback;
+  }
+  setToMainThreadCallback(callback) {
+    this.#toMainThreadCallback = callback;
+    this.#worker.toMainThreadCallback = callback;
   }
   async writeStdin(str) {
     await this.#worker.writeStdin(str);

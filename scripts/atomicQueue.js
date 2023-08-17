@@ -23,10 +23,10 @@ class AtomicQueue {
     if (bytes.length > room) {
       return false;
     }
-    Atomics.store(this.#tail, 0, nextTail);
     for (let byte = 0; byte < bytes.length; byte++) {
       this.#queue[(currentTail + byte) % this.#queue.length] = bytes[byte];
     }
+    Atomics.store(this.#tail, 0, nextTail);
     Atomics.notify(this.#tail, 0, 1);
     return true;
   }

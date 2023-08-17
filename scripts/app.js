@@ -145,6 +145,12 @@ async function runSkulpt(code) {
         });
     await myPromise;
 }
+pythonRunner.setToMainThreadCallback(data => {
+    const img = new Image();
+    img.src = "data:image/png;base64," + data.showImage;
+    document.getElementById("turtle").innerText = "";
+    document.getElementById("turtle").appendChild(img);
+});
 async function runPython(path) {
     let needsTurtle = false;
     try {
