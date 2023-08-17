@@ -93,8 +93,8 @@ pythonRunner.ready.then(() => {
 });
 input_terminal.addEventListener("keydown", event => {
     input_terminal.style.color = pythonRunning ? "grey" : "blue";
-    if (event.code === "Enter") {
-        let value = input_terminal.value + "\n";
+    if (event.key === "Enter") {
+        let value = input_terminal.value.replace(/\n+$/, "") + "\n";
         input_terminal.value = "";
         input_terminal.focus();
         event.preventDefault();

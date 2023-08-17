@@ -4,7 +4,7 @@ Functionality is seperated into javascript modules. A javascript module doesn't 
 When functionality is shared then it is exported from a module and imported in another.
 
 Exceptions that are loaded globally and not in modules:
-* 3rd party code (`ace.js`, `pyodide.js`, `markdown-it.js`)
+* 3rd party code (`ace.js`, `pyodide.js`, `markdown-it.js`, `skulpt.js`)
 * `atomicQueue.js` (it runs in a worker with `pyodide.js`; workers cannot mix modules and scripts)
 
 To limit the global code problems their accesses are listed here
@@ -12,6 +12,7 @@ To limit the global code problems their accesses are listed here
 * `markdown-it.js` is accessed only by `app.js` under the name `window.markdownit`
 * `pyodide.js` is accessed only by `pythonWorker.js` under the name `loadPyodide`
 * `atomicQueue.js` is accessed by `pythonHandler.js` and `pythonWorker.js` under the name `AtomicQueue`
+* `skulpt.js` is accessed only by app.js. Ideally we would use pyodide always but turtle isn't in pyodide.
 ## Purpose of files
 Local Files:
 * `app.js` is glue code for the whole application. It also controls how persistant data is stored.
@@ -26,13 +27,17 @@ Local Files:
 * `prompt.js` An asynchronous prompt api for getting input from the user. Used to login
 * `iframeSharedArrayBufferWorkaround.js` Provides a ponyfill for SharedArrayBuffer and related Atomics for use in iframes.
 * `firefoxPolyfillAtomicWaitAsync.js` Provides a polyfill for Atomic.waitAsync in firefox.
-3rd Party Files (All from cdn.jsdelivr.net):
+3rd Party Files from cdn.jsdelivr.net:
 * `ace.js` Provides the editor
 * `pyodide.js` Uses emscripten and WebAssembly to run python in the browser.
 * `markdown-it.js` Used to display markdown. (currently Codegrinder provides compiled markdown)
+3rd Party Files local:
+* `skulpt.js` It isn't on a cdn as it was built from source. Again would be better if we only had 1 python interpreter (pyodide), but we need turtle.
 ## Limited spread of objects
 To try to make code readable locally objects should not be referenced in a module that doesn't import them directly.
-Currently the only exception is the `directoryTree.js` `FileSystem` object which is accessed in `pythonWorker.js`.
+Exceptions:
+* `FileSystem` object from `directoryTree.js` is accessed in `pythonWorker.js`.
+* `app.js` knows too much about `pythonWorker.js`. It needs to know about images from matplotlib and has hardcoded the function to run a python file.
 ## Web APIs
 We are using a lot of Javascript/Web APIs.
 * Javascript Classes which have private data members/methods designated by a leading #
@@ -42,11 +47,10 @@ We are using a lot of Javascript/Web APIs.
 * Default arguments and Destructuring assignment to enable keyword arguments.
 * Web workers. Allows us to use multiple threads.
 * Optional Chaining. Allows a chain of accesses to short circuit on a null. foo?.bar returns null if foo is null.
-* localStorage. Enables persistant storage.
-* prompt and confirm. These are used for convenience of coding. A user could avoid most of them except codegrinder login.
+* localStorage. Enables persistant storage. This should be considered for removal as well as prompt. With autologin we don't need to store anything or prompt.
+* prompt and confirm. These are used for convenience of coding.
 # Hosting
-Because we are using SharedArrayBuffer the document must be sent with the following headers
-shown as they would be in an nginx configuration file.
+To enable SharedArrayBuffer server side use the following headers (shown as would be in nginx configuration file)
 ```
 location / {
     # set response headers
@@ -54,7 +58,7 @@ location / {
     add_header 'Cross-Origin-Opener-Policy' 'same-origin';
 }
 ```
-Currently Codegrinder is not directly accessable because of CORS. A workaround is in place
+If not running on Codegrinder server then it is not directly accessable because of CORS. A workaround is in place
 in `codeGrinder.js` that requres the server to provide a trampoline function. In Node.js it looks like:
 ```
 app.post("/trampoline", async function (req, res) {
@@ -84,5 +88,9 @@ app.post("/trampoline", async function (req, res) {
 })
 ```
 Besides the above everything can be statically hosted.
+# Hacks (via service worker)
+I designed this with SharedArrayBuffer in mind because it is the ideal method to convert a synchronous task in a worker into an asynchronous task on the main thread. Unfortunately iframes cannot use SharedArrayBuffer unless factors outside our control in the parent document are in place. This means that we must use a fishy method to communicate between the python thread and the main thread. That fishy method is using a service worker to emulate SharedArrayBuffer. iframeSharedArrayBuffer.js communicates with the service worker with XMLHTTPRequest, an ancient api that allows synchronous requests to be made. Using Synchronous XMLHTTPRequest on the worker thread can emulate Atomics.wait albiet slowly.
+In a similar vein, the service worker is also used to forcibly send the SharedArrayBuffer headers so that the server doesn't have to. This is only relevent if not running in an iframe though.
+The service worker is also used to get around another iframe problem. That is, an iframe cannot send cookies in requests for some reason. To solve this the service worker catches the request and refetches it, this indirection prevents the cookies from being removed. Cookies are needed to talk to codegrinder.
 # Formatting
 The formatting is based on the default vscode right click `Format Document` command.
