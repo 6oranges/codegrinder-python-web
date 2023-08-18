@@ -68,7 +68,7 @@ class PythonWorker {
       throw new Error("Already running python on this worker");
     }
     this.runningPython = true;
-    const execution = new Promise((resolve) => { this.#pythonFinished = resolve }).then(() => new Promise((delayAccept) => setTimeout(() => delayAccept(), 100)));
+    const execution = new Promise((resolve) => { this.#pythonFinished = resolve });
     this.#worker.postMessage({ fileSystem, run: code });
     await Promise.race([execution, this.destroyed]);
     this.runningPython = false;

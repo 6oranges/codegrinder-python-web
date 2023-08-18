@@ -1,5 +1,5 @@
 "use strict"
-const version = '0.1.26';
+const version = '0.1.41';
 const appCache = location.pathname.split("/").slice(1, -1).join("/") + "#"; // Unique across origin (Current Path)
 const versionedCache = appCache + version; // Unique across versions
 const localFilesToCache = [
@@ -55,7 +55,7 @@ self.addEventListener('activate', function (event) {
           return caches.delete(cacheName);
         })
       );
-      return self.clients.claim();
+      return await self.clients.claim();
     })
   );
 });
@@ -76,7 +76,7 @@ async function cacheFirst(request) {
   }
   // Try opening the cache
   const cache = await caches.open(versionedCache);
-  const response = await cache.match(request);
+  const response = await cache.match(request, { ignoreSearch: true });
   if (response) {
     return response;
   }

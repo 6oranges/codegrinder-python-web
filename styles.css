@@ -287,6 +287,10 @@ body {
   overflow: hidden;
 }
 
+#terminal_container img {
+  width: 100%;
+}
+
 .dropdown {
   list-style-type: none;
   background-color: #111;

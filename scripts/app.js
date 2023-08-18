@@ -110,7 +110,7 @@ input_terminal.addEventListener("keydown", event => {
             pythonRunning = true;
             pythonRunner.runPython(fileSystem, value).then(async () => {
                 await pythonRunner.ready;
-                writeTerminal(">> ", "orange");
+                setTimeout(() => writeTerminal(">> ", "orange"), 1000);
                 pythonRunning = false;
                 run.innerText = "Run";
                 run.disabled = false;
@@ -172,7 +172,7 @@ async function runPython(path) {
         writeTerminal("Running " + path + "\n", "orange");
         await pythonRunner.runPython(fileSystem, `run_script(".${path}")`);
         await pythonRunner.ready;
-        writeTerminal(">> ", "orange");
+        setTimeout(() => writeTerminal(">> ", "orange"), 1000);
         pythonRunning = false;
         run.innerText = "Run";
         run.disabled = false;
@@ -215,12 +215,17 @@ runner.run(suite)`;
         codeGrinderUI.buttonGrade.disabled = finished;
 
     }
-    function problemSetHandler({ problemsFiles, dotFile }, unique) {
+    function problemSetHandler({ problemsFiles, dotFile }, current) {
         currentProblemsFiles = problemsFiles;
         currentDotFile = dotFile;
         let firstUnfinished = null;
         codeGrinderUI.problemsList.innerText = "";
-        for (let problem in currentDotFile.problems) {
+        const keys = [];
+        for (let key in currentDotFile.problems) {
+            keys.push(key);
+        }
+        keys.sort()
+        for (let problem of keys) {
             const li = document.createElement("li");
             const button = document.createElement("button");
             li.appendChild(button);
@@ -237,7 +242,11 @@ runner.run(suite)`;
                 switchProblem(problem);
             })
         }
-        switchProblem(unique || firstUnfinished || Object.keys(problemsFiles)[0]);
+        if (current && !currentDotFile.completed.has(current)) {
+            switchProblem(current)
+        } else {
+            switchProblem(firstUnfinished || keys[0]);
+        }
     }
     codeGrinderUI.buttonRunTests.addEventListener("click", () => {
         runPython("/.run_all_tests.py");
