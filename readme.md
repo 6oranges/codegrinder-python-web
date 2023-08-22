@@ -38,6 +38,10 @@ To try to make code readable locally objects should not be referenced in a modul
 Exceptions:
 * `FileSystem` object from `directoryTree.js` is accessed in `pythonWorker.js`.
 * `app.js` knows too much about `pythonWorker.js`. It needs to know about images from matplotlib and has hardcoded the function to run a python file.
+## Python libraries
+Matplotlib takes a while to load, up to 10 seconds. The python interpreter loads much faster and sends the ready signal to the main thread within a few seconds. While matplotlib is loading running matplotlib will cause an error which will prevent it from finishing loading.
+
+Turtle is ran using a different interpreter than all the other python. As such it suffers from bad error messages and only works on single files on the main thread which cannot be interrupted.
 ## Web APIs
 We are using a lot of Javascript/Web APIs.
 * Javascript Classes which have private data members/methods designated by a leading #
@@ -90,7 +94,11 @@ app.post("/trampoline", async function (req, res) {
 Besides the above everything can be statically hosted.
 # Hacks (via service worker)
 I designed this with SharedArrayBuffer in mind because it is the ideal method to convert a synchronous task in a worker into an asynchronous task on the main thread. Unfortunately iframes cannot use SharedArrayBuffer unless factors outside our control in the parent document are in place. This means that we must use a fishy method to communicate between the python thread and the main thread. That fishy method is using a service worker to emulate SharedArrayBuffer. iframeSharedArrayBuffer.js communicates with the service worker with XMLHTTPRequest, an ancient api that allows synchronous requests to be made. Using Synchronous XMLHTTPRequest on the worker thread can emulate Atomics.wait albiet slowly.
+
 In a similar vein, the service worker is also used to forcibly send the SharedArrayBuffer headers so that the server doesn't have to. This is only relevent if not running in an iframe though.
+
 The service worker is also used to get around another iframe problem. That is, an iframe cannot send cookies in requests for some reason. To solve this the service worker catches the request and refetches it, this indirection prevents the cookies from being removed. Cookies are needed to talk to codegrinder.
+
+The service worker currently caches all assets on installation (or shortly afterward for libraries)which means that if the project is updated then students will not get a new version immediately. Rather the service worker has a version string which must be updated. After updating the version string students must first view the page, (open or reload) and then they must close their browser entirely and open it again for it to update. This is because of the above hack using synchronous requests to wait, browsers avoid closing service workers that are actively processing requests.
 # Formatting
 The formatting is based on the default vscode right click `Format Document` command.

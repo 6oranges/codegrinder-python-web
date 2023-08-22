@@ -11,6 +11,7 @@ const run = document.getElementById("run");
 const newTab = document.getElementById("new_tab");
 const saveCurrent = document.getElementById("save_current");
 const saveAll = document.getElementById("save_all");
+const embed = document.getElementById("embed");
 const mdElement = document.getElementById("instructions");
 const navBar = document.getElementById("nav_bar");
 const md = window.markdownit();
@@ -58,6 +59,23 @@ saveCurrent.addEventListener("click", () => {
 saveAll.addEventListener("click", () => {
     tabs.saveAllTabs();
 })
+embed.addEventListener("click", () => {
+    const files = encodeURIComponent(JSON.stringify(fileSystem.rootNode));
+    const string = `<div style="position: relative; padding-bottom: 56.25%; padding-top: 0px; height: 0; overflow: hidden;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="${location.origin + location.pathname}?files=${files}"></iframe></div>`;
+    navigator.clipboard.writeText(string);
+    console.log(string);
+})
+const urlFiles = urlParams.get("files");
+if (urlFiles) {
+    fileSystem.rootNode = JSON.parse(urlFiles);
+    fileSystemUI.refreshUI();
+    tabs.closeAll();
+    for (let file in fileSystem.rootNode.children) {
+        if (!fileSystem.rootNode.children[file].children) {
+            tabs.addSwitchTab("/" + file, fileSystem.rootNode.children[file].content);
+        }
+    }
+}
 
 // Set up terminal
 let previousSpan = document.createElement("span");
@@ -314,6 +332,7 @@ runner.run(suite)`;
         saveAll.style.display = "none";
         codeGrinderUI.buttonAssignments.style.display = "none";
         codeGrinderUI.buttonSync.style.display = "none";
+        embed.style.display = "none";
         tabs.autoSave = true;
         codeGrinderReadyPromise.then(() => codeGrinder.commandGet(urlAssignment)).then(res => problemSetHandler(res));
         let lastSyncedChange = mostRecentChange;
@@ -339,8 +358,12 @@ if (urlDummy) {
     saveCurrent.style.display = "none";
     saveAll.style.display = "none";
     filesButton.style.display = "none";
+    embed.style.display = "none";
     document.getElementById("instructions_container").style.display = "none";
-    document.getElementsByClassName("tabs-container")[0].style.display = "none";
+    if (Object.keys(fileSystem.rootNode.children).length === 0) {
+        document.getElementsByClassName("tabs-container")[0].style.display = "none";
+        tabs.addSwitchTab("/main.py", "")
+    }
     document.getElementsByClassName("path-input")[0].style.display = "none";
     run.style.position = "absolute";
     run.style.right = 0;
@@ -350,7 +373,6 @@ if (urlDummy) {
     run.style.backgroundColor = "green";
     run.style.margin = "20px";
     tabs.autoSave = true;
-    tabs.addSwitchTab("/main.py", "")
 } else {
     setupCodegrinder();
 }

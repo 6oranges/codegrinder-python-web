@@ -35,20 +35,18 @@ class Tab {
     this.#ace.getSession().on("change", (delta) => {
       if (delta.action === "insert" || delta.action === "remove") {
         this.saved = false;
-        if (this.autoSave) {
-          this.saveHandler(this.path, this.content);
-        }
+        this.changeHandler();
       }
     });
     this.#ace.commands.addCommand({
       name: "saveFile",
       bindKey: { win: "Ctrl-S", mac: "Command-S" },
       exec: (editor) => {
-        this.saveHandler(this.path, this.content);
+        this.saveHandler();
       }
     });
     this.saveHandler = null;
-    this.autoSave = false;
+    this.changeHandler = null;
     // Set magic properties
     this.path = path;
     this.saved = true;
@@ -179,10 +177,14 @@ class Tabs {
     return true;
   }
   addNewTab(tab = new Tab()) {
-    tab.autoSave = this.autoSave;
-    tab.saveHandler = (path, content) => {
+    tab.saveHandler = () => {
       this.saveTab(tab);
     };
+    tab.changeHandler = () => {
+      if (this.autoSave) {
+        this.saveTab(tab);
+      }
+    }
     tab.element.addEventListener("click", () => {
       this.switchTab(this.tabs.indexOf(tab));
     })
