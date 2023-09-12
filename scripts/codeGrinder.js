@@ -235,12 +235,14 @@ class CodeGrinder {
       }
     }
     const problemsFiles = {};
+    const problemsWhitelist = {};
     const completed = new Set();
     for (let unique in steps) {
       const commit = commits[unique];
       const problem = problems[unique];
       const step = steps[unique];
       problemsFiles[unique] = {};
+      problemsWhitelist[unique] = step.whitelist;
       const files = problemsFiles[unique];
       for (let name in step.files) {
         files[name] = atob(step.files[name]);
@@ -274,7 +276,7 @@ class CodeGrinder {
       problems: infos,
       completed,
     };
-    return { problemsFiles, dotFile };
+    return { problemsFiles, dotFile, problemsWhitelist };
   }
   async commandSync(user, files, dotfile, problem_unique) {
     const commit = await this.gatherStudent(files, dotfile, problem_unique);

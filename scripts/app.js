@@ -61,7 +61,7 @@ saveAll.addEventListener("click", () => {
 })
 embed.addEventListener("click", () => {
     const files = encodeURIComponent(JSON.stringify(fileSystem.rootNode));
-    const string = `<div style="position: relative; padding-bottom: 56.25%; padding-top: 0px; height: 0; overflow: hidden;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="${location.origin + location.pathname}?files=${files}"></iframe></div>`;
+    const string = `<div style="position: relative; padding-bottom: 56.25%; padding-top: 0px; height: 0; overflow: hidden;"><iframe style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;" src="${location.origin + location.pathname}?dummy=true&files=${files}"></iframe></div>`;
     navigator.clipboard.writeText(string);
     console.log(string);
 })
@@ -208,6 +208,7 @@ function setupCodegrinder() {
     let currentProblemsFiles;
     let currentDotFile;
     let currentProblemUnique;
+    let currentProblemsWhitelist;
     function switchProblem(unique) {
         currentProblemUnique = unique;
         fileSystem.clear();
@@ -215,7 +216,7 @@ function setupCodegrinder() {
         for (let filename in currentProblemsFiles[unique]) {
             const content = currentProblemsFiles[unique][filename];
             fileSystem.touch("/" + filename).content = content;
-            if (!filename.includes("test") && !(["doc/doc.md", "doc/index.html", "Makefile", ".gitignore"].includes(filename))) {
+            if (currentProblemsWhitelist[unique][filename]) {
                 tabs.addSwitchTab("/" + filename, content);
             }
         }
@@ -233,9 +234,10 @@ runner.run(suite)`;
         codeGrinderUI.buttonGrade.disabled = finished;
 
     }
-    function problemSetHandler({ problemsFiles, dotFile }, current) {
+    function problemSetHandler({ problemsFiles, dotFile, problemsWhitelist }, current) {
         currentProblemsFiles = problemsFiles;
         currentDotFile = dotFile;
+        currentProblemsWhitelist = problemsWhitelist;
         let firstUnfinished = null;
         codeGrinderUI.problemsList.innerText = "";
         const keys = [];
