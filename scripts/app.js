@@ -214,7 +214,41 @@ function setupCodegrinder() {
         fileSystem.clear();
         tabs.closeAll();
         for (let filename in currentProblemsFiles[unique]) {
-            const content = currentProblemsFiles[unique][filename];
+            let content = currentProblemsFiles[unique][filename];
+            if (filename.includes("asttest")) {
+                // A super hack, changes asttest.py to avoid problems with tracer
+                content = content.replace(`# write tracing results to a *.cover file
+        tracer.results().write_results(coverdir='.')
+        # count how many lines were skipped
+        all_skipped = []
+        f = open(basename+".cover")
+        lineno = 0
+        for line in f:
+            lineno += 1
+            if line[:6] == ">>>>>>":
+                # skipped line
+                all_skipped.append((line[8:], lineno))
+        f.close()
+        # clean up cover file
+        os.remove(basename+".cover")
+        # count executable lines
+        visitor = FindExecutableLines()
+        visitor.visit(self.tree)
+        all_executable_lines = set(visitor.lines)`, `# count executable lines
+        visitor = FindExecutableLines()
+        visitor.visit(self.tree)
+        all_executable_lines = set(visitor.lines)
+        # count how many lines were skipped
+        lines_hit = set()
+        for filename, lineno in tracer.results().counts:
+            if basename in ".".join(filename.split(".")[:-1]).split("/"):
+                lines_hit.add(lineno)
+        all_skipped = []
+        source = self.file.split("\\n")
+        for line in all_executable_lines:
+            if line not in lines_hit:
+                all_skipped.append((source[line-1], line))`)
+            }
             fileSystem.touch("/" + filename).content = content;
             if (currentProblemsWhitelist[unique][filename]) {
                 tabs.addSwitchTab("/" + filename, content);

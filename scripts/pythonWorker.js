@@ -33,7 +33,6 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "ifram
   })
   pyodide.runPython(`
   import sys
-  import importlib
   def invalidate_import_cache():
       # Get a copy of the current module dictionary
       module_dict = dict(sys.modules)
