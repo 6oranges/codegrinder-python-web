@@ -99,10 +99,12 @@ function writeTerminal(str, color) {
 // Set up python
 let pythonRunning = false;
 let serverRunning = false;
+let turtleRunning = false;
 window.iframeSharedArrayBufferWorkaroundServiceWorkerLoss = function () {
     pythonRunner.stopPython();
 }
 let serverStdin;
+let skulptInput;
 run.disabled = true;
 pythonRunner.ready.then(() => {
     run.disabled = false;
@@ -110,14 +112,21 @@ pythonRunner.ready.then(() => {
     writeTerminal(">> ", "orange");
 });
 input_terminal.addEventListener("keydown", event => {
-    input_terminal.style.color = pythonRunning ? "grey" : "blue";
+    input_terminal.style.color = pythonRunning || turtleRunning ? "grey" : "blue";
     if (event.key === "Enter") {
-        let value = input_terminal.value.replace(/\n+$/, "") + "\n";
+        const withoutTrailingNewline = input_terminal.value.replace(/\n+$/, "")
+        const value = withoutTrailingNewline + "\n";
         input_terminal.value = "";
         input_terminal.focus();
         event.preventDefault();
         if (serverRunning) {
             serverStdin(value)
+            return;
+        }
+        if (turtleRunning) {
+            writeTerminal(value, "grey");
+            skulptInput?.(withoutTrailingNewline)
+            return;
         }
         if (pythonRunning) {
             writeTerminal(value, "grey");
@@ -148,17 +157,22 @@ function builtinRead(x) {
     return Sk.builtinFiles["files"][x];
 }
 async function runSkulpt(code) {
-    Sk.configure({ output: (text) => { writeTerminal(text, "black") }, read: builtinRead });
+    Sk.configure({
+        inputfun: function () {
+            return new Promise((resolve, reject) => {
+                skulptInput = resolve;
+            })
+        }, output: (text) => { writeTerminal(text, "black") }, read: builtinRead
+    });
     (Sk.TurtleGraphics || (Sk.TurtleGraphics = {})).target = 'turtle';
     var myPromise = Sk.misceval.asyncToPromise(function () {
         return Sk.importMainWithBody("<stdin>", false, code, true);
     });
-    myPromise.then(function (mod) {
+    await myPromise.then(function (mod) {
     },
         function (err) {
-            writeTerminal(err.toString(), "black");
+            writeTerminal(err.toString() + "\n", "red");
         });
-    await myPromise;
 }
 pythonRunner.setToMainThreadCallback(data => {
     const img = new Image();
@@ -176,7 +190,10 @@ async function runPython(path) {
         // Pass invalid path on intentionally
     }
     if (content.includes("import turtle")) {
+        turtleRunning = true;
         await runSkulpt(content);
+        turtleRunning = false;
+        writeTerminal(">> ", "orange")
         return;
     }
     if (pythonRunning) {
