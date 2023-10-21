@@ -283,6 +283,7 @@ body {
 }
 
 #output_terminal textarea {
+  width: 100%;
   font-family: inherit;
   color: grey;
   resize: none;

@@ -73,6 +73,10 @@ class PythonWorker {
     await Promise.race([execution, this.destroyed]);
     this.runningPython = false;
   }
+  async loadModules(list) {
+    await this.ready
+    this.#worker.postMessage({ loadModules: list });
+  }
   async writeStdin(str) {
     await this.ready;
     const encoder = new TextEncoder();
@@ -100,16 +104,19 @@ class PythonRunner {
   #stdoutCallback;
   #stderrCallback;
   #toMainThreadCallback;
+  #modules;
   constructor(stdoutCallback = (str) => { }, stderrCallback = (str) => { }, toMainThreadCallback = (data) => { }) {
     this.#stdoutCallback = stdoutCallback;
     this.#stderrCallback = stderrCallback;
     this.#toMainThreadCallback = toMainThreadCallback;
     this.#worker = new PythonWorker(this.#stdoutCallback, this.#stderrCallback, this.#toMainThreadCallback);
+    this.#modules = [];
     this.ready = this.#worker.ready;
   }
   stopPython() {
     this.#worker.destroy();
     this.#worker = new PythonWorker(this.#stdoutCallback, this.#stderrCallback, this.#toMainThreadCallback);
+    this.#worker.loadModules(this.#modules)
     this.ready = this.#worker.ready;
   }
   async runPython(fileSystem, code) {
@@ -132,6 +139,10 @@ class PythonRunner {
   }
   async writeStdin(str) {
     await this.#worker.writeStdin(str);
+  }
+  loadModules(list) {
+    this.#modules = list;
+    this.#worker.loadModules(list)
   }
 }
 export { PythonRunner };

@@ -1,5 +1,5 @@
 "use strict"
-const version = '0.1.54';
+const version = '0.1.70';
 const appCache = location.pathname.split("/").slice(1, -1).join("/") + "#"; // Unique across origin (Current Path)
 const versionedCache = appCache + version; // Unique across versions
 const localFilesToCache = [
@@ -60,23 +60,26 @@ self.addEventListener('activate', function (event) {
   );
 });
 async function cacheFirst(request) {
-  if (request.mode !== "cors") {
-    // Modify the request's headers to include CORS headers
-    const modifiedHeaders = new Headers(request.headers);
-    modifiedHeaders.append('Origin', self.origin);
-
-    // Create a new request with the modified headers
-    request = new Request(request.url, {
-      method: request.method,
-      headers: modifiedHeaders,
-      mode: 'cors',
-      credentials: 'omit',
-      redirect: 'follow'
-    });
+  const url = new URL(request.url);
+  // Static hosted means no query parameters go to server
+  if (url.host == location.host) {
+    url.search = '';
   }
+  const modifiedHeaders = new Headers(request.headers);
+  // Modify the request's headers to include CORS headers
+  modifiedHeaders.append('Origin', self.origin);
+
+  // Create a new request with the modified headers
+  request = new Request(url, {
+    method: request.method,
+    headers: modifiedHeaders,
+    mode: 'cors',
+    credentials: 'omit',
+    redirect: 'follow'
+  });
   // Try opening the cache
   const cache = await caches.open(versionedCache);
-  const response = await cache.match(request, { ignoreSearch: true });
+  const response = await cache.match(request);
   if (response) {
     return response;
   }

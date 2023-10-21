@@ -68,38 +68,11 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "ifram
   globalThis.showImage = (b64img) => {
     toMainThreadQueue.enqueueMessageSync({ showImage: b64img });
   }
-  pyodide.loadPackage("micropip").then(() => {
-    return pyodide.runPython(`
+  await pyodide.loadPackage("micropip")
+  await pyodide.runPython(`
 import micropip
-micropip.install(["cisc108","matplotlib"])
-      `)
-  }).then(() => {
-    pyodide.runPython(`
-import base64
-import os
-
-from io import BytesIO
-
-os.environ['MPLBACKEND'] = 'AGG'
-
-import matplotlib.pyplot
-import js
-def ensure_matplotlib_patch():
-    _old_show = matplotlib.pyplot.show
-
-    def show():
-        buf = BytesIO()
-        matplotlib.pyplot.savefig(buf, format='png')
-        buf.seek(0)
-        # encode to a base64 str
-        img = base64.b64encode(buf.read()).decode('utf-8')
-        js.showImage(img)
-        matplotlib.pyplot.clf()
-
-    matplotlib.pyplot.show = show
-ensure_matplotlib_patch()`);
-  });
-
+micropip.install(["cisc108"])
+`)
 
   // Load a directory into the pyodide virtual filesystem (emscripten)
   // We are using our abstraction defined in directoryTree.js
@@ -127,8 +100,50 @@ ensure_matplotlib_patch()`);
       if (!onlyChildren) pyodide.FS.unlink(path);
     }
   };
+  const modules = new Set(["cisc108"]);
   addEventListener("message", (e) => {
     const data = e.data;
+    if (data.loadModules) {
+      const toLoad = [];
+      for (let module of data.loadModules) {
+        if (!modules.has(module)) {
+          toLoad.push(module);
+          modules.add(module);
+        }
+      }
+      pyodide.runPython(`
+      import micropip
+      micropip.install(`+ JSON.stringify(toLoad) + `)
+            `).then(() => {
+        if (toLoad.includes("matplotlib")) {
+          pyodide.runPython(`
+import base64
+import os
+
+from io import BytesIO
+
+os.environ['MPLBACKEND'] = 'AGG'
+
+import matplotlib.pyplot
+import js
+def ensure_matplotlib_patch():
+    _old_show = matplotlib.pyplot.show
+
+    def show():
+        buf = BytesIO()
+        matplotlib.pyplot.savefig(buf, format='png')
+        buf.seek(0)
+        # encode to a base64 str
+        img = base64.b64encode(buf.read()).decode('utf-8')
+        js.showImage(img)
+        matplotlib.pyplot.clf()
+
+    matplotlib.pyplot.show = show
+ensure_matplotlib_patch()`);
+        }
+      });
+
+    }
     if (data.fileSystem) {
       deleteRecursively(".", true);
       writeDirectory(data.fileSystem.rootNode, "./");

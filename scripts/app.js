@@ -232,6 +232,10 @@ function setupCodegrinder() {
         tabs.closeAll();
         for (let filename in currentProblemsFiles[unique]) {
             let content = currentProblemsFiles[unique][filename];
+            if (filename.includes("requirements.txt")) {
+                const modules = content.split("\n").filter(value => !value.includes("#"));
+                pythonRunner.loadModules(modules);
+            }
             if (filename.includes("asttest")) {
                 // A super hack, changes asttest.py to avoid problems with tracer
                 content = content.replace(`# write tracing results to a *.cover file
@@ -416,6 +420,10 @@ if (urlDummy) {
     if (Object.keys(fileSystem.rootNode.children).length === 0) {
         document.getElementsByClassName("tabs-container")[0].style.display = "none";
         tabs.addSwitchTab("/main.py", "")
+    }
+    if (fileSystem.rootNode.children["requirements.txt"]?.content) {
+        const modules = fileSystem.rootNode.children["requirements.txt"]?.content.split("\n").filter(value => !value.includes("#"));
+        pythonRunner.loadModules(modules);
     }
     document.getElementsByClassName("path-input")[0].style.display = "none";
     run.style.position = "absolute";
