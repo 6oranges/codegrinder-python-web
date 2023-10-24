@@ -249,7 +249,7 @@ body {
 #turtle {
   position: absolute;
   width: 100%;
-  pointer-events: none;
+  /*pointer-events: none;*/
 }
 
 .bar-content>div,

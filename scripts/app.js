@@ -164,6 +164,7 @@ async function runSkulpt(code) {
             })
         }, output: (text) => { writeTerminal(text, "black") }, read: builtinRead
     });
+    document.getElementById("turtle").style.pointerEvents = "none";
     (Sk.TurtleGraphics || (Sk.TurtleGraphics = {})).target = 'turtle';
     var myPromise = Sk.misceval.asyncToPromise(function () {
         return Sk.importMainWithBody("<stdin>", false, code, true);
