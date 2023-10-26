@@ -249,13 +249,15 @@ body {
 #turtle {
   position: absolute;
   width: 100%;
-  /*pointer-events: none;*/
 }
 
-.bar-content>div,
-.bar-content>label {
+#output_terminal,
+#instructions {
   padding-left: 1em;
   display: block;
+}
+
+#instructions {
   height: 100%;
 }
 
