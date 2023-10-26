@@ -106,6 +106,10 @@ micropip.install(["cisc108"])
     if (data.loadModules) {
       const toLoad = [];
       for (let module of data.loadModules) {
+        module = module.trim();
+        if (module == "") {
+          continue;
+        }
         if (!modules.has(module)) {
           toLoad.push(module);
           modules.add(module);
