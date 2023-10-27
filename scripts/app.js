@@ -182,6 +182,7 @@ pythonRunner.setToMainThreadCallback(data => {
     document.getElementById("turtle").appendChild(img);
 });
 async function runPython(path) {
+    document.getElementById("turtle").innerText = "";
     let content = "";
     try {
         content = fileSystem.touch(path).content;
