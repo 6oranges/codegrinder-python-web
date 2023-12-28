@@ -1,3 +1,4 @@
+import { decodeBase64ToUTF8OrLatin1 } from "./encodingHelpers.js";
 import { createPrompt } from "./prompt.js";
 // Hacky trampoline to get around cors in testing environment
 function trampoline(url, options) {
@@ -113,20 +114,20 @@ class CodeGrinder {
     const files = {};
     if (commit) {
       for (const [name, contents] of Object.entries(commit.files)) {
-        files[name] = atob(contents);
+        files[name] = decodeBase64ToUTF8OrLatin1(contents);
       }
     }
 
     // commit files may be overwritten by new step files
     for (const [name, contents] of Object.entries(newStep.files)) {
-      files[name] = atob(contents);
+      files[name] = decodeBase64ToUTF8OrLatin1(contents);
     }
     files["doc/index.html"] = newStep.instructions;
     for (const [name, contents] of Object.entries(types[newStep.problemType].files)) {
       if (files[name] !== undefined) {
         console.log(`warning: problem type file is overwriting problem file: ${name}`);
       }
-      files[name] = atob(contents);
+      files[name] = decodeBase64ToUTF8OrLatin1(contents);
     }
     info.step++;
     return files;
@@ -180,9 +181,9 @@ class CodeGrinder {
           resolve(reply.commitBundle);
         } else if (reply.event) {
           if (reply.event.event == "stdout") {
-            stdoutCallback(atob(reply.event.streamData));
+            stdoutCallback(decodeBase64ToUTF8OrLatin1(reply.event.streamData));
           } else if (reply.event.event == "stderr") {
-            stderrCallback(atob(reply.event.streamData));
+            stderrCallback(decodeBase64ToUTF8OrLatin1(reply.event.streamData));
           } else if (reply.event.event == "exit") {
             // console.log("Exit Code: ", reply.event.event.exitStatus);
           } else {
@@ -245,13 +246,13 @@ class CodeGrinder {
       problemsWhitelist[unique] = step.whitelist;
       const files = problemsFiles[unique];
       for (let name in step.files) {
-        files[name] = atob(step.files[name]);
+        files[name] = decodeBase64ToUTF8OrLatin1(step.files[name]);
       }
       files["doc/index.html"] = step.instructions;
 
       if (commit !== null) {
         for (let name in commit.files) {
-          files[name] = atob(commit.files[name]);
+          files[name] = decodeBase64ToUTF8OrLatin1(commit.files[name]);
         }
       }
 
@@ -259,7 +260,7 @@ class CodeGrinder {
         if (files[name] !== undefined) {
           console.log("warning: problem type file is overwriting problem file: " + name);
         }
-        files[name] = atob(types[step.problemType].files[name]);
+        files[name] = decodeBase64ToUTF8OrLatin1(types[step.problemType].files[name]);
       }
       if (commit?.reportCard?.passed && commit.score === 1.0) {
         const nextStepFiles = await this.nextStep(infos[unique], problem, commit, types);
@@ -305,18 +306,18 @@ class CodeGrinder {
     if (currentStep > 1) {
       const commit = await this.#getObject(`/assignments/${assignmentID}/problems/${problemID}/steps/${currentStep - 1}/commits/last`);
       for (const name in commit.files) {
-        files[name] = atob(commit.files[name]);
+        files[name] = decodeBase64ToUTF8OrLatin1(commit.files[name]);
       }
     }
 
     // commit files may be overwritten by new step files
     for (const name in step.files) {
-      files[name] = atob(step.files[name]);
+      files[name] = decodeBase64ToUTF8OrLatin1(step.files[name]);
     }
     files["doc/index.html"] = step.instructions;
     const problemType = await this.getProblemType(step.problemType);
     for (const name in problemType.files) {
-      files[name] = atob(problemType.files[name]);
+      files[name] = decodeBase64ToUTF8OrLatin1(problemType.files[name]);
     }
     return files;
   }

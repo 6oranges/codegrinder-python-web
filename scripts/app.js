@@ -2,6 +2,7 @@ import { Tabs } from './editorTabs.js';
 import { FileSystem, FileSystemUI, extension } from './directoryTree.js';
 import { PythonRunner } from './pythonHandler.js'
 import { CodeGrinder, CodeGrinderUI } from './codeGrinder.js';
+import { decodeBase64ToUTF8, encodeUTF8OrLatin1AsBase64 } from './encodingHelpers.js';
 const output_terminal_label = document.getElementById("output_terminal")
 const output_terminal = output_terminal_label.getElementsByTagName("pre")[0];
 const input_terminal = output_terminal_label.getElementsByTagName("textarea")[0];
@@ -335,14 +336,7 @@ runner.run(suite)`;
             if (node.children) {
                 toFiles(node, path + name + "/", files);
             } else {
-                // TODO
-                // Need to support binary and utf8
-                // Uint8Array.from(atob(btoa(String.fromCharCode(...new Uint8Array([0,5,128,255,200])))),c=>c.charCodeAt(0))
-                try {
-                    files[path + name] = btoa(node.content);
-                } catch {
-                    console.error("couldn't btoa", node.content)
-                }
+                    files[path + name] = encodeUTF8OrLatin1AsBase64(node.content);
             }
         }
         return files;
@@ -399,7 +393,7 @@ runner.run(suite)`;
             const currentFiles = toFiles(fileSystem.rootNode, "");
             for (let filename in currentProblemsFiles[currentProblemUnique]) {
                 const content = currentProblemsFiles[currentProblemUnique][filename];
-                if (atob(currentFiles[filename]) !== content) {
+                if (decodeBase64ToUTF8(currentFiles[filename]) !== content) {
                     if (mostRecentChange > lastSyncedChange) {
                         lastSyncedChange = mostRecentChange;
                         console.log("Auto Sync")
