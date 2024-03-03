@@ -116,7 +116,7 @@ input_terminal.addEventListener("keydown", event => {
     input_terminal.style.color = pythonRunning || turtleRunning ? "grey" : "blue";
     if (event.key === "Enter") {
         const withoutTrailingNewline = input_terminal.value.replace(/\n+$/, "")
-        const value = withoutTrailingNewline + "\n";
+        let value = withoutTrailingNewline + "\n";
         input_terminal.value = "";
         input_terminal.focus();
         event.preventDefault();
@@ -136,6 +136,9 @@ input_terminal.addEventListener("keydown", event => {
             writeTerminal(value, "blue");
             run.innerText = "Stop"
             pythonRunning = true;
+            if (tabs.tabs[tabs.currentTab].path.endsWith(".sql")) {
+                value = 'run_sql_line("""' + value + '""")'
+            }
             pythonRunner.runPython(fileSystem, value).then(async () => {
                 await pythonRunner.ready;
                 setTimeout(() => writeTerminal(">> ", "orange"), 1000);
@@ -216,8 +219,28 @@ async function runPython(path) {
         run.disabled = false;
     }
 }
-run.addEventListener("click", () => {
-    runPython(tabs.tabs[tabs.currentTab].path);
+run.addEventListener("click", async () => {
+    const path = tabs.tabs[tabs.currentTab].path
+    if (path.endsWith(".sql")) {
+        if (pythonRunning) {
+            run.disabled = true;
+            pythonRunning = false;
+            pythonRunner.stopPython();
+            run.innerText = "Stopping";
+        } else {
+            run.innerText = "Stop"
+            pythonRunning = true;
+            writeTerminal("Running " + path + "\n", "orange");
+            await pythonRunner.runPython(fileSystem, "run_sql_file('." + path + "')")
+            await pythonRunner.ready;
+            setTimeout(() => writeTerminal(">> ", "orange"), 1000);
+            pythonRunning = false;
+            run.innerText = "Run";
+            run.disabled = false;
+        }
+    } else {
+        runPython(path);
+    }
 })
 
 function setupCodegrinder() {
@@ -233,11 +256,14 @@ function setupCodegrinder() {
         currentProblemUnique = unique;
         fileSystem.clear();
         tabs.closeAll();
+        const modules = [];
         for (let filename in currentProblemsFiles[unique]) {
+            if (filename.endsWith(".sql")) {
+                modules.push("sqlite3", "pandas");
+            }
             let content = currentProblemsFiles[unique][filename];
             if (filename.includes("requirements.txt")) {
-                const modules = content.split("\n").filter(value => !value.includes("#"));
-                pythonRunner.loadModules(modules);
+                modules.push(...content.split("\n").filter(value => !value.includes("#")));
             }
             if (filename.includes("asttest")) {
                 // A super hack, changes asttest.py to avoid problems with tracer
@@ -277,6 +303,9 @@ function setupCodegrinder() {
             if (currentProblemsWhitelist[unique][filename]) {
                 tabs.addSwitchTab("/" + filename, content);
             }
+        }
+        if (modules.length > 0) {
+            pythonRunner.loadModules(modules);
         }
         fileSystem.touch("/.run_all_tests.py").content = `
 import unittest
@@ -336,7 +365,7 @@ runner.run(suite)`;
             if (node.children) {
                 toFiles(node, path + name + "/", files);
             } else {
-                    files[path + name] = encodeUTF8OrLatin1AsBase64(node.content);
+                files[path + name] = encodeUTF8OrLatin1AsBase64(node.content);
             }
         }
         return files;
@@ -417,8 +446,14 @@ if (urlDummy) {
         document.getElementsByClassName("tabs-container")[0].style.display = "none";
         tabs.addSwitchTab("/main.py", "")
     }
+    const modules = [];
+    if (urlFiles.includes(".sql")) {
+        modules.push("sqlite3", "pandas");
+    }
     if (fileSystem.rootNode.children["requirements.txt"]?.content) {
-        const modules = fileSystem.rootNode.children["requirements.txt"]?.content.split("\n").filter(value => !value.includes("#"));
+        modules.push(...fileSystem.rootNode.children["requirements.txt"]?.content.split("\n").filter(value => !value.includes("#")));
+    }
+    if (modules.length > 0) {
         pythonRunner.loadModules(modules);
     }
     document.getElementsByClassName("path-input")[0].style.display = "none";

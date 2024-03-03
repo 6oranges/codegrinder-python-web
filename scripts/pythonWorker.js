@@ -31,6 +31,11 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "ifram
       stderrQueue.enqueueMultipleSync([byte]);
     }
   })
+  await pyodide.loadPackage("micropip")
+  await pyodide.runPython(`
+import micropip
+micropip.install(["cisc108"])
+`)
   pyodide.runPython(`
   import sys
   def invalidate_import_cache():
@@ -64,15 +69,48 @@ importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "ifram
       finally:
           # Restore the original values
           sys.argv = original_argv
+  def run_sql_file(file):
+      import sqlite3
+      from pathlib import Path
+      Path("./bin/").mkdir(parents=True, exist_ok=True)
+      conn=sqlite3.connect("bin/data.db")
+      # Open and read the file as a single buffer
+      fd = open(file, 'r')
+      sqlFile = fd.read()
+      fd.close()
+      try:
+          conn.executescript(sqlFile)
+      except Exception as e:
+          print(e)
+      conn.close()
+  def run_sql_line(line):
+      import sqlite3
+      import pandas as pd
+      from pathlib import Path
+      Path("./bin/").mkdir(parents=True, exist_ok=True)
+      conn=sqlite3.connect("bin/data.db")
+      command=line.strip()
+      if not command:
+          return
+      try:
+          cursor = conn.execute(command)
+          tmp = cursor.fetchall()
+          if tmp:
+              frame = pd.DataFrame(tmp)
+              d={}
+              names=list(map(lambda x: x[0], cursor.description))
+              for name in range(len(names)):
+                  d[(name)]=names[name]
+              frame.rename(columns=d,inplace=True)
+              print(frame)
+
+      except Exception as e:
+          print(e)
+      conn.close()
     `)
   globalThis.showImage = (b64img) => {
     toMainThreadQueue.enqueueMessageSync({ showImage: b64img });
   }
-  await pyodide.loadPackage("micropip")
-  await pyodide.runPython(`
-import micropip
-micropip.install(["cisc108"])
-`)
 
   // Load a directory into the pyodide virtual filesystem (emscripten)
   // We are using our abstraction defined in directoryTree.js
