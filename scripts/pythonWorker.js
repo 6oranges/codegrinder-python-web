@@ -127,9 +127,10 @@ micropip.install(["cisc108"])
     }
   }
   function deleteRecursively(path, onlyChildren = false) {
-    if (pyodide.FS.isDir(path)) {
+    if (pyodide.FS.isDir(pyodide.FS.lookupPath(path).node.mode)) {
       const files = pyodide.FS.readdir(path);
       files.forEach((file) => {
+        if (file == "." || file == "..") return
         const filePath = path + '/' + file;
         deleteRecursively(filePath);
       });
