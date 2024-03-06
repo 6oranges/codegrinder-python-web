@@ -62,14 +62,14 @@ class PythonWorker {
   destroy() {
     this.#destroy();
   }
-  async runPython(fileSystem, code) {
+  async runPython(fileSystem, code, clearFiles = false) {
     await this.ready;
     if (this.runningPython) {
       throw new Error("Already running python on this worker");
     }
     this.runningPython = true;
     const execution = new Promise((resolve) => { this.#pythonFinished = resolve });
-    this.#worker.postMessage({ fileSystem, run: code });
+    this.#worker.postMessage({ fileSystem, run: code, clearFiles });
     await Promise.race([execution, this.destroyed]);
     this.runningPython = false;
   }
@@ -119,11 +119,11 @@ class PythonRunner {
     this.#worker.loadModules(this.#modules)
     this.ready = this.#worker.ready;
   }
-  async runPython(fileSystem, code) {
+  async runPython(fileSystem, code, clearFiles = false) {
     if (this.#worker.runningPython) {
       this.stopPython();
     }
-    await this.#worker.runPython(fileSystem, code);
+    await this.#worker.runPython(fileSystem, code, clearFiles);
   }
   setStdoutCallback(callback) {
     this.#stdoutCallback = callback;

@@ -185,7 +185,7 @@ pythonRunner.setToMainThreadCallback(data => {
     document.getElementById("turtle").innerText = "";
     document.getElementById("turtle").appendChild(img);
 });
-async function runPython(path) {
+async function runPython(path, clearFiles = false) {
     document.getElementById("turtle").innerText = "";
     let content = "";
     try {
@@ -211,7 +211,7 @@ async function runPython(path) {
         run.innerText = "Stop"
         pythonRunning = true;
         writeTerminal("Running " + path + "\n", "orange");
-        await pythonRunner.runPython(fileSystem, `run_script(".${path}")`);
+        await pythonRunner.runPython(fileSystem, `run_script(".${path}")`, clearFiles);
         await pythonRunner.ready;
         setTimeout(() => writeTerminal(">> ", "orange"), 1000);
         pythonRunning = false;
@@ -319,6 +319,9 @@ runner.run(suite)`;
         const finished = currentDotFile.completed.has(unique);
         codeGrinderUI.buttonGrade.innerText = finished ? "Finished" : "Grade";
         codeGrinderUI.buttonGrade.disabled = finished;
+        if (fileSystem.rootNode.children?.bin.children?.["setup.py"]) {
+            runPython("/bin/setup.py", true);
+        }
 
     }
     function problemSetHandler({ problemsFiles, dotFile, problemsWhitelist }, current) {
@@ -356,7 +359,7 @@ runner.run(suite)`;
         }
     }
     codeGrinderUI.buttonRunTests.addEventListener("click", () => {
-        runPython("/.run_all_tests.py");
+        runPython("/.run_all_tests.py", true);
     })
     function toFiles(directory, path = "/", files = {}) {
         for (let name in directory.children) {

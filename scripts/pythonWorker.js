@@ -187,8 +187,10 @@ ensure_matplotlib_patch()`);
       });
 
     }
-    if (data.fileSystem) {
+    if (data.clearFiles) {
       deleteRecursively(".", true);
+    }
+    if (data.fileSystem) {
       writeDirectory(data.fileSystem.rootNode, "./");
     }
     if (data.run) {
