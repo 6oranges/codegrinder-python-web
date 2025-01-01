@@ -3,11 +3,11 @@ export const decodeBase64ToBinary = base64EncodedString =>
     Uint8Array.from(atob(base64EncodedString), m => m.codePointAt(0));
 export const decodeBase64ToUTF8 = base64EncodedString =>
     new TextDecoder().decode(decodeBase64ToBinary(base64EncodedString));
-export const decodeBase64ToUTF8OrLatin1 = base64EncodedString =>{
+export const decodeBase64ToUTF8OrLatin1 = base64EncodedString => {
     try {
         return decodeBase64ToUTF8(base64EncodedString);
-    } catch(e){
-        console.error(e,base64EncodedString)
+    } catch (e) {
+        console.error(e, base64EncodedString)
         return decodeBase64ToLatin1(base64EncodedString);
     }
 }
@@ -26,8 +26,8 @@ export function encodeUTF8AsBase64(str) {
 export function encodeUTF8OrLatin1AsBase64(str) {
     try {
         return encodeUTF8AsBase64(str);
-    } catch(e){
-        console.error(e,str)
+    } catch (e) {
+        console.error(e, str)
         return btoa(str);
     }
 }
