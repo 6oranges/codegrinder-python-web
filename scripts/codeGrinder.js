@@ -282,7 +282,7 @@ class CodeGrinder {
   async commandSync(user, files, dotfile, problem_unique) {
     const commit = await this.gatherStudent(files, dotfile, problem_unique);
     commit.action = "";
-    commit.note = "grind sync";
+    commit.note = "web autosave";
     const unsigned = {
       userID: user.id,
       commit: commit,
