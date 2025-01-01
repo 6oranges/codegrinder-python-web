@@ -139,35 +139,23 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
   if (url.host == location.host) {
+    // When hosted on the same server as the api, don't cache api requests (different paths)
     if (!url.pathname.startsWith(location.pathname.split("/sw.js")[0])) {
-      // API requests must not be cached. This line is needed for iframes
+      // This line is needed for iframes
       event.respondWith(fetch(request, { headers: { 'Cache-Control': 'no-cache' } }));
       return;
     }
+    // SharedArrayBufferWorkaround
     const resource = url.pathname.split("ponyfill/");
     if (resource.length === 2) {
       event.respondWith(handlePonyfill(request, resource[1]));
       return;
     }
   }
+  // When not hosted on same server as api, all api requests are proxied through POST trampoline; don't cache
   if (request.method !== "GET") {
     return;
   }
-  if (url.host == location.host) {
-    if (url.pathname.includes("skulpt/")) {
-      // large skulpt library files.
-      // Obtained by cloning the skulpt repository
-      // Running `npm install` and `npm run dist` and copying the dist folder contents
-      // Only used for turtle
-      event.respondWith(cacheFirst(request));
-      return;
-    }
-    // Local files
-    event.respondWith(cacheFirst(request));
-    return;
-  } else if (url.host == "cdn.jsdelivr.net") {
-    // large files from CDNs
-    event.respondWith(cacheFirst(request));
-    return;
-  }
+  // Cache everything
+  event.respondWith(cacheFirst(request));
 });
