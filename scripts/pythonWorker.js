@@ -1,7 +1,7 @@
-importScripts("https://cdn.jsdelivr.net/pyodide/v0.23.2/full/pyodide.js", "iframeSharedArrayBufferWorkaround.js", "./atomicQueue.js");
+importScripts("https://cdn.jsdelivr.net/pyodide/v0.29.1/full/pyodide.js", "iframeSharedArrayBufferWorkaround.js", "./atomicQueue.js");
 (async () => {
   const pyodide = await loadPyodide({
-    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.23.2/full/"
+    indexURL: "https://cdn.jsdelivr.net/pyodide/v0.29.1/full/"
   })
   // This interrupt buffer needs to be a multiple of 4
   const interrupt = new SharedArrayBuffer(4);
