@@ -11,10 +11,10 @@ function trampoline(url, options) {
   })
 }
 class CodeGrinder {
-  constructor(cookie, host = "codegrinder.cs.utahtech.edu") {
+  constructor(cookie, host = "codegrinder.russross.com") {
     this.host = host;
     this.cookie = cookie;
-    this.urlPrefix = "/v2";
+    this.urlPrefix = "";
   }
   #cookied(url, options) {
     if (!options) {
